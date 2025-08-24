@@ -1,31 +1,29 @@
 #pragma once
-#include <GLFW/glfw3.h>
+
 #include <webgpu/webgpu.h>
-#include <GLFW/glfw3.h>
 
 class Life
 {
 public:
-    Life(
-        WGPUInstance instance,
-        WGPUAdapter adapter,
-        WGPUDevice device,
-        WGPUQueue queue,
-        GLFWwindow* window
-    );
+    Life(WGPUInstance instance, WGPUAdapter adapter, WGPUDevice device, WGPUSurface surface, WGPUQueue queue);
     ~Life();
+
     void tick();
-    GLFWwindow* getWindow();
 
 private:
     // WebGPU objects
-    WGPUInstance instance;
-    WGPUAdapter adapter;
-    WGPUDevice device;
-    WGPUQueue queue;
-    WGPUSurface surface;
+    WGPUInstance instance = nullptr;
+    WGPUAdapter adapter = nullptr;
+    WGPUDevice device = nullptr;
+    WGPUQueue queue = nullptr;
+    WGPUSurface surface = nullptr;
+    
+    // Surface state
+    bool surfaceCreated = false;
+    int width = 800;   // Canvas dimensions
+    int height = 600;
 
-    // GLFW window reference
-    GLFWwindow *window;
-
+    // Internal methods
+    void createSurface();
+    void configureSurface();
 };

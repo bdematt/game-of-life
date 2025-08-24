@@ -1,7 +1,6 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include <iostream>
-#include <GLFW/glfw3.h>
 #include <webgpu/webgpu.h>
 #include "webgpu-utils.h"
 #include "life.h"
@@ -10,13 +9,7 @@
 Life* life;
 
 void main_loop() {
-    if (glfwWindowShouldClose(life->getWindow())) {
-        emscripten_cancel_main_loop();
-        return;
-    }
     life->tick();
-    glfwPollEvents();
-    glfwSwapBuffers(life->getWindow());
 }
 
 int main() {
@@ -51,33 +44,28 @@ int main() {
         return -1;
     }
     std::cout << "✅ WebGPU device acquired!" << std::endl;
-    
+
+    // Create and configure Surface
+    WGPUSurface surface = createSurface(instance);
+    if (!surface) {
+        std::cout << "❌ Surface creation failed!" << std::endl;
+        return -1;
+    }
+    configureSurface(device, surface);
+
     // Get queue
     WGPUQueue queue = wgpuDeviceGetQueue(device);
     std::cout << "✅ WebGPU queue obtained!" << std::endl;
     std::cout << "🎉 WebGPU initialization complete!" << std::endl;
 
-    // Initialize GLFW & Window
-    glfwInit();
-        if (!glfwInit()) {
-        std::cout << "❌ Could not initialize GLFW" << std::endl;
-        return 1;
-    }
-    GLFWwindow* window = glfwCreateWindow(800, 600, "Game of Life", NULL, NULL);
-    if (!window) {
-        std::cout << "❌ Could not open window" << std::endl;
-        glfwTerminate();
-        return 1;
-    }
-    glfwMakeContextCurrent(window);
-    std::cout << "✅ GLFW window opened!" << std::endl;
+    
 
     life = new Life(
         instance,
         adapter,
         device,
-        queue,
-        window
+        surface,
+        queue
     );
 
     emscripten_set_main_loop(main_loop, 0, 1);

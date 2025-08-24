@@ -13,6 +13,7 @@
         }
         canvas {
             border: 2px solid #fff;
+            background: #000;  /* Black background to see if canvas is working */
         }
     </style>
 </head>
@@ -20,41 +21,24 @@
     <section>
         <h1>👾 Game of Life 👾</h1>
     </section>
-    <canvas id="wasm-canvas" oncontextmenu="event.preventDefault()"></canvas>
+    <canvas id="canvas" width="800" height="600"></canvas>
     
     <!-- Define Module BEFORE Emscripten script --> 
     <script>
-        const canvas = document.getElementById('wasm-canvas');
+        const canvas = document.getElementById('canvas');
+        
         const wasmSupported = typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function"
         const webGpuSupported = !!navigator.gpu;
         if (!wasmSupported || !webGpuSupported) {
             window.alert("WebAssembly or WebGPU not supported. Please try a different browser.");
         }
+        
         var Module = {
-            canvas,
+            canvas,  // Pass the canvas to Emscripten
             onRuntimeInitialized: () => {
                 console.log('Ready to rock!');
             }
         };
-        // // Request pointer lock on click
-        // canvas.addEventListener('click', () => {
-        //     canvas.requestPointerLock();
-        //     canvas.requestFullscreen()
-        // });
-
-        // // Track pointer lock state
-        // document.addEventListener('pointerlockchange', () => {
-        //     const wasLocked = isPointerLocked;
-        //     isPointerLocked = document.pointerLockElement === canvas;
-            
-        //     if (isPointerLocked && !wasLocked) {
-        //         console.log('Pointer locked - enabling GLFW cursor disable');
-        //         Module._enableCursorLock();
-        //     } else if (!isPointerLocked && wasLocked) {
-        //         console.log('Pointer unlocked - disabling GLFW cursor disable');
-        //         Module._disableCursorLock();
-        //     }
-        // });
     </script>
     
     <!-- Emscripten will inject its script here -->

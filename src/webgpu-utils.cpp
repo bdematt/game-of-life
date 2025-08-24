@@ -4,12 +4,10 @@
 #include <iostream>
 
 /**
- * Utility function to get a WebGPU adapter, so that
- *     WGPUAdapter adapter = requestAdapterSync(options);
- * is roughly equivalent to
- *     const adapter = await navigator.gpu.requestAdapter(options);
+ * Utility function to get a WebGPU adapter
  */
-WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const * options) {
+WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const * options)
+{
     // A simple structure holding the local information shared with the
     // onAdapterRequestEnded callback.
     struct UserData {
@@ -61,7 +59,8 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions 
 /**
  * Utility function to get a WebGPU device synchronously
  */
-WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
+WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor)
+{
     struct UserData {
         WGPUDevice device = nullptr;
         bool requestEnded = false;
@@ -110,4 +109,52 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * d
     assert(userData.requestEnded);
 
     return userData.device;
+}
+/**
+ * Utility function to create a WebGPU surface
+ */
+WGPUSurface createSurface(WGPUInstance instance)
+{
+    std::cout << "🔍 Creating surface..." << std::endl;
+
+    struct CanvasSelectorChain {
+        WGPUChainedStruct chain;
+        const char *selector;
+    };
+
+    CanvasSelectorChain canvasChain = {};
+    canvasChain.chain.next = nullptr;
+    canvasChain.chain.sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector;
+    canvasChain.selector = "#canvas";
+
+    WGPUSurfaceDescriptor surfaceDesc = {};
+    surfaceDesc.label = WGPUStringView{"Canvas Surface", 14};
+    surfaceDesc.nextInChain = &canvasChain.chain;
+
+    return wgpuInstanceCreateSurface(instance, &surfaceDesc);
+}
+
+/**
+ * Utility function to create a WebGPU surface
+ */
+void configureSurface(WGPUDevice device, WGPUSurface surface)
+{
+    std::cout << "🔍 Configuring surface..." << std::endl;
+
+    if (!surface) {
+        std::cout << "❌ Cannot configure - surface is null!" << std::endl;
+        return;
+    }
+
+    WGPUSurfaceConfiguration config = {};
+    config.device = device;
+    config.format = WGPUTextureFormat_BGRA8Unorm;
+    config.usage = WGPUTextureUsage_RenderAttachment;
+    config.width = 800;   // Use class member variables
+    config.height = 600; // Use class member variables
+    config.presentMode = WGPUPresentMode_Fifo;
+
+    wgpuSurfaceConfigure(surface, &config);
+    
+    std::cout << "✅ Surface configured for " << config.width << "x" << config.height << std::endl;
 }

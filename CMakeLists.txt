@@ -11,20 +11,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(COMPILE_WARNING_AS_ERROR ON)
 
-# Find packages installed by vcpkg
-find_package(glfw3 CONFIG REQUIRED)
-
 # Your executable
 add_executable(
     index
     src/main.cpp
     src/webgpu-utils.cpp
     src/life.cpp
-)
-
-# Link libraries
-target_link_libraries(index PRIVATE 
-    glfw 
 )
 
 # Create dist directory for web assets
@@ -47,7 +39,6 @@ target_compile_options(index PRIVATE
 
 # Emscripten link options with modern emdawnwebgpu port
 target_link_options(index PRIVATE
-    -sUSE_GLFW=3                   # Use Emscripten's GLFW
     ${emdawnwebgpu_flags}          # Use modern emdawnwebgpu port
     -sASYNCIFY=1                   # Required for async WebGPU operations
     -sEXPORTED_FUNCTIONS=['_main'] # Export main function
