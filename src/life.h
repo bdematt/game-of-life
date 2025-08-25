@@ -24,6 +24,9 @@ private:
     WGPUVertexBufferLayout vertexBufferLayout = {};
     WGPUVertexAttribute vertexAttribute = {};
     
+    // Shader module
+    WGPUShaderModule cellShaderModule = nullptr;
+    
     // Surface state
     bool surfaceCreated = false;
     int width = 800;   // Canvas dimensions
@@ -47,4 +50,5 @@ private:
     // Internal methods
     void createVertexBuffer();
     void setupVertexLayout();
+    void createShaderModule();
 };

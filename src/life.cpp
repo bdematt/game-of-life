@@ -16,10 +16,16 @@ Life::Life(
     
     // Setup vertex layout description
     setupVertexLayout();
+    
+    // Create shader module
+    createShaderModule();
 }
 
 Life::~Life()
 {
+    // Clean up shader module
+    if (cellShaderModule) wgpuShaderModuleRelease(cellShaderModule);
+    
     // Clean up vertex buffer
     if (vertexBuffer) wgpuBufferRelease(vertexBuffer);
     
@@ -77,6 +83,40 @@ void Life::setupVertexLayout()
     std::cout << "✅ Vertex layout configured:" << std::endl;
     std::cout << "   Array stride: " << vertexBufferLayout.arrayStride << " bytes" << std::endl;
     std::cout << "   Attribute format: float32x2 at shader location " << vertexAttribute.shaderLocation << std::endl;
+}
+
+void Life::createShaderModule()
+{
+    std::cout << "🔧 Creating shader module..." << std::endl;
+    
+    // WGSL shader code as a string
+    const char* shaderCode = R"(
+        @vertex
+        fn vertexMain(@location(0) pos: vec2f) -> @builtin(position) vec4f {
+            return vec4f(pos, 0, 1);
+        }
+        
+        // Fragment shader will be added here in the next step!
+    )";
+    
+    // Create shader module descriptor
+    WGPUShaderSourceWGSL source = {};
+    source.chain.sType = WGPUSType_ShaderSourceWGSL;
+    source.code = WGPUStringView{shaderCode, strlen(shaderCode)};
+
+    WGPUShaderModuleDescriptor shaderModuleDesc = {};
+    shaderModuleDesc.label = WGPUStringView{"Cell Shader", 11};
+    shaderModuleDesc.nextInChain = &source.chain;
+    
+    // Create the shader module
+    cellShaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
+    
+    if (!cellShaderModule) {
+        std::cout << "❌ Failed to create shader module!" << std::endl;
+        return;
+    }
+    
+    std::cout << "✅ Shader module created with vertex shader!" << std::endl;
 }
 
 void Life::tick()
