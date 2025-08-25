@@ -96,17 +96,20 @@ void Life::createShaderModule()
             return vec4f(pos, 0, 1);
         }
         
-        // Fragment shader will be added here in the next step!
+        @fragment
+        fn fragmentMain() -> @location(0) vec4f {
+            return vec4f(1, 0, 0, 1); // (Red, Green, Blue, Alpha)
+        }
     )";
     
     // Create shader module descriptor
-    WGPUShaderSourceWGSL source = {};
-    source.chain.sType = WGPUSType_ShaderSourceWGSL;
-    source.code = WGPUStringView{shaderCode, strlen(shaderCode)};
-
+    WGPUShaderModuleWGSLDescriptor wgslDescriptor = {};
+    wgslDescriptor.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
+    wgslDescriptor.code = WGPUStringView{shaderCode, strlen(shaderCode)};
+    
     WGPUShaderModuleDescriptor shaderModuleDesc = {};
     shaderModuleDesc.label = WGPUStringView{"Cell Shader", 11};
-    shaderModuleDesc.nextInChain = &source.chain;
+    shaderModuleDesc.nextInChain = &wgslDescriptor.chain;
     
     // Create the shader module
     cellShaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
@@ -116,7 +119,7 @@ void Life::createShaderModule()
         return;
     }
     
-    std::cout << "✅ Shader module created with vertex shader!" << std::endl;
+    std::cout << "✅ Shader module created with vertex and fragment shaders!" << std::endl;
 }
 
 void Life::tick()
