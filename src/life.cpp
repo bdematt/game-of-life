@@ -9,11 +9,20 @@ Life::Life(
     WGPUQueue queue
 ) : instance(instance), adapter(adapter), device(device), surface(surface), queue(queue)
 {
-    std::cout << "🔧 Life created" << std::endl;   
+    std::cout << "🔧 Life created" << std::endl;
+    
+    // Create vertex buffer with our square data
+    createVertexBuffer();
+    
+    // Setup vertex layout description
+    setupVertexLayout();
 }
 
 Life::~Life()
 {
+    // Clean up vertex buffer
+    if (vertexBuffer) wgpuBufferRelease(vertexBuffer);
+    
     // Clean up WebGPU resources
     if (surface) wgpuSurfaceRelease(surface);
     if (queue) wgpuQueueRelease(queue);
@@ -48,6 +57,26 @@ void Life::createVertexBuffer()
     
     std::cout << "✅ Vertex buffer created with " << vertexCount << " vertices" << std::endl;
     std::cout << "   Buffer size: " << sizeof(vertices) << " bytes" << std::endl;
+}
+
+void Life::setupVertexLayout()
+{
+    std::cout << "🔧 Setting up vertex layout..." << std::endl;
+    
+    // Define the vertex attribute (position)
+    vertexAttribute.format = WGPUVertexFormat_Float32x2;  // Two 32-bit floats (X, Y)
+    vertexAttribute.offset = 0;                           // Start at beginning of vertex
+    vertexAttribute.shaderLocation = 0;                   // Links to vertex shader input at location 0
+    
+    // Define the vertex buffer layout
+    vertexBufferLayout.arrayStride = 8;                   // 8 bytes per vertex (2 floats × 4 bytes each)
+    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex; // Step per vertex (not per instance)
+    vertexBufferLayout.attributeCount = 1;                // We have one attribute (position)
+    vertexBufferLayout.attributes = &vertexAttribute;      // Point to our attribute
+    
+    std::cout << "✅ Vertex layout configured:" << std::endl;
+    std::cout << "   Array stride: " << vertexBufferLayout.arrayStride << " bytes" << std::endl;
+    std::cout << "   Attribute format: float32x2 at shader location " << vertexAttribute.shaderLocation << std::endl;
 }
 
 void Life::tick()
@@ -106,6 +135,9 @@ void Life::tick()
 
     // Submit command buffer to queue
     wgpuQueueSubmit(queue, 1, &commandBuffer);
+
+    // Note: No need to call wgpuSurfacePresent() when using emscripten_set_main_loop
+    // Emscripten handles presentation automatically via requestAnimationFrame
 
     // Clean up resources
     wgpuTextureViewRelease(view);

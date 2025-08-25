@@ -19,8 +19,10 @@ private:
     WGPUQueue queue = nullptr;
     WGPUSurface surface = nullptr;
     
-    // Vertex buffer
+    // Vertex buffer and layout
     WGPUBuffer vertexBuffer = nullptr;
+    WGPUVertexBufferLayout vertexBufferLayout = {};
+    WGPUVertexAttribute vertexAttribute = {};
     
     // Surface state
     bool surfaceCreated = false;
@@ -44,4 +46,5 @@ private:
 
     // Internal methods
     void createVertexBuffer();
+    void setupVertexLayout();
 };
