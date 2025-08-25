@@ -1,70 +1,74 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
-#include <GLES3/gl3.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
-#include "triangle.h"
+#include <webgpu/webgpu.h>
+#include "webgpu-utils.h"
+#include "life.h"
 
-// Global variables for the main loop
-GLFWwindow* window;
-Triangle* triangle;
-
-void render() {
-    glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    
-    float time = (float)glfwGetTime();
-    triangle->render(time);
-}
+// Globals
+Life* life;
 
 void main_loop() {
-    if (glfwWindowShouldClose(window)) {
-        emscripten_cancel_main_loop();
-        return;
-    }
-    
-    glfwPollEvents();
-    render();
-    glfwSwapBuffers(window);
+    life->tick();
 }
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
+    std::cout << "🚀 Starting WebGPU application..." << std::endl;
     
-    if (!glfwInit()) {
-        std::cout << "Failed to initialize GLFW" << std::endl;
+    // Create WebGPU instance
+    WGPUInstanceDescriptor instanceDesc = {};
+    WGPUInstance instance = wgpuCreateInstance(&instanceDesc);
+    if (!instance)
+    {
+        std::cout << "❌ Failed to create WebGPU instance" << std::endl;
         return -1;
     }
-    
-    std::cout << "GLFW initialized successfully!" << std::endl;
-    
-    // Configure GLFW for WebGL2/OpenGL ES 3.0
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
-    
-    window = glfwCreateWindow(800, 600, "Multi-file WebGL Test", NULL, NULL);
-    if (!window) {
-        std::cout << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
+    std::cout << "✅ WebGPU instance created!" << std::endl;
+
+    // Request adapter
+    WGPURequestAdapterOptions options = {};
+    options.powerPreference = WGPUPowerPreference_HighPerformance;
+    WGPUAdapter adapter = requestAdapterSync(instance, &options);
+    if (!adapter)
+    {
+        std::cout << "❌ Failed to get WebGPU adapter" << std::endl;
         return -1;
     }
+    std::cout << "✅ WebGPU adapter acquired!" << std::endl;
+
+    // Request device
+    WGPUDeviceDescriptor deviceDesc = {};
+    WGPUDevice device = requestDeviceSync(adapter, &deviceDesc);
+    if (!device) {
+        std::cout << "❌ Failed to get WebGPU device" << std::endl;
+        return -1;
+    }
+    std::cout << "✅ WebGPU device acquired!" << std::endl;
+
+    // Create and configure Surface
+    WGPUSurface surface = createSurface(instance);
+    if (!surface) {
+        std::cout << "❌ Surface creation failed!" << std::endl;
+        return -1;
+    }
+    configureSurface(device, surface);
+
+    // Get queue
+    WGPUQueue queue = wgpuDeviceGetQueue(device);
+    std::cout << "✅ WebGPU queue obtained!" << std::endl;
+    std::cout << "🎉 WebGPU initialization complete!" << std::endl;
+
     
-    std::cout << "Window created successfully!" << std::endl;
-    
-    glfwMakeContextCurrent(window);
-    
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-    
-    // Initialize our triangle
-    triangle = new Triangle();
-    
+
+    life = new Life(
+        instance,
+        adapter,
+        device,
+        surface,
+        queue
+    );
+
     emscripten_set_main_loop(main_loop, 0, 1);
-    
-    // Cleanup (won't be reached but good practice)
-    delete triangle;
-    glfwDestroyWindow(window);
-    glfwTerminate();
     
     return 0;
 }
