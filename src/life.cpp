@@ -19,10 +19,16 @@ Life::Life(
     
     // Create shader module
     createShaderModule();
+    
+    // Create render pipeline
+    createRenderPipeline();
 }
 
 Life::~Life()
 {
+    // Clean up render pipeline
+    if (cellPipeline) wgpuRenderPipelineRelease(cellPipeline);
+    
     // Clean up shader module
     if (cellShaderModule) wgpuShaderModuleRelease(cellShaderModule);
     
@@ -103,13 +109,13 @@ void Life::createShaderModule()
     )";
     
     // Create shader module descriptor
-    WGPUShaderModuleWGSLDescriptor wgslDescriptor = {};
-    wgslDescriptor.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-    wgslDescriptor.code = WGPUStringView{shaderCode, strlen(shaderCode)};
+    WGPUShaderSourceWGSL source = {};
+    source.chain.sType = WGPUSType_ShaderSourceWGSL;
+    source.code = WGPUStringView{shaderCode, strlen(shaderCode)};
     
     WGPUShaderModuleDescriptor shaderModuleDesc = {};
     shaderModuleDesc.label = WGPUStringView{"Cell Shader", 11};
-    shaderModuleDesc.nextInChain = &wgslDescriptor.chain;
+    shaderModuleDesc.nextInChain = &source.chain;
     
     // Create the shader module
     cellShaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
@@ -120,6 +126,66 @@ void Life::createShaderModule()
     }
     
     std::cout << "✅ Shader module created with vertex and fragment shaders!" << std::endl;
+}
+
+void Life::createRenderPipeline()
+{
+    std::cout << "🔧 Creating render pipeline..." << std::endl;
+    
+    // Create render pipeline descriptor
+    WGPURenderPipelineDescriptor pipelineDesc = {};
+    pipelineDesc.label = WGPUStringView{"Cell Pipeline", 13};
+    
+    // Vertex state
+    WGPUVertexState vertexState = {};
+    vertexState.module = cellShaderModule;
+    vertexState.entryPoint = WGPUStringView{"vertexMain", 10};
+    vertexState.bufferCount = 1;
+    vertexState.buffers = &vertexBufferLayout;
+    
+    // Fragment state  
+    WGPUColorTargetState colorTarget = {};
+    colorTarget.format = WGPUTextureFormat_BGRA8Unorm; // Match surface format
+    colorTarget.blend = nullptr; // No blending for now
+    colorTarget.writeMask = WGPUColorWriteMask_All;
+    
+    WGPUFragmentState fragmentState = {};
+    fragmentState.module = cellShaderModule;
+    fragmentState.entryPoint = WGPUStringView{"fragmentMain", 12};
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    
+    // Pipeline layout (auto)
+    WGPUPipelineLayoutDescriptor layoutDesc = {};
+    layoutDesc.label = WGPUStringView{"Cell Pipeline Layout", 20};
+    layoutDesc.bindGroupLayoutCount = 0;
+    layoutDesc.bindGroupLayouts = nullptr;
+    WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &layoutDesc);
+    
+    // Complete pipeline descriptor
+    pipelineDesc.layout = pipelineLayout;
+    pipelineDesc.vertex = vertexState;
+    pipelineDesc.fragment = &fragmentState;
+    pipelineDesc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    pipelineDesc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    pipelineDesc.primitive.frontFace = WGPUFrontFace_CCW;
+    pipelineDesc.primitive.cullMode = WGPUCullMode_None;
+    pipelineDesc.multisample.count = 1;
+    pipelineDesc.multisample.mask = ~0u;
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+    
+    // Create the pipeline
+    cellPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+    
+    // Clean up intermediate layout
+    wgpuPipelineLayoutRelease(pipelineLayout);
+    
+    if (!cellPipeline) {
+        std::cout << "❌ Failed to create render pipeline!" << std::endl;
+        return;
+    }
+    
+    std::cout << "✅ Render pipeline created!" << std::endl;
 }
 
 void Life::tick()
@@ -165,8 +231,10 @@ void Life::tick()
     // Begin render pass
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &passDesc);
     
-    // TODO: In the next step, we'll set up shaders and draw the vertices here!
-    // For now, we just have an empty render pass that clears to blue
+    // Set the render pipeline and draw the square!
+    wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
+    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(vertices));
+    wgpuRenderPassEncoderDraw(pass, vertexCount, 1, 0, 0);
     
     // End render pass
     wgpuRenderPassEncoderEnd(pass);

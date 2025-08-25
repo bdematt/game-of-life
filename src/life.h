@@ -24,8 +24,9 @@ private:
     WGPUVertexBufferLayout vertexBufferLayout = {};
     WGPUVertexAttribute vertexAttribute = {};
     
-    // Shader module
+    // Shader module and render pipeline
     WGPUShaderModule cellShaderModule = nullptr;
+    WGPURenderPipeline cellPipeline = nullptr;
     
     // Surface state
     bool surfaceCreated = false;
@@ -48,7 +49,8 @@ private:
     static constexpr uint32_t vertexCount = 6; // 6 vertices (2 triangles * 3 vertices each)
 
     // Internal methods
+    void createShaderModule();
     void createVertexBuffer();
     void setupVertexLayout();
-    void createShaderModule();
+    void createRenderPipeline();
 };
