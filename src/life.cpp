@@ -24,6 +24,32 @@ Life::~Life()
     std::cout << "🔧 Life destroyed" << std::endl;
 }
 
+void Life::createVertexBuffer()
+{
+    std::cout << "🔧 Creating vertex buffer..." << std::endl;
+    
+    // Create vertex buffer descriptor
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.label = WGPUStringView{"Square Vertices", 15};
+    bufferDesc.size = sizeof(vertices); // Size in bytes
+    bufferDesc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
+    bufferDesc.mappedAtCreation = false;
+
+    // Create the buffer
+    vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    
+    if (!vertexBuffer) {
+        std::cout << "❌ Failed to create vertex buffer!" << std::endl;
+        return;
+    }
+
+    // Write vertex data to buffer
+    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
+    
+    std::cout << "✅ Vertex buffer created with " << vertexCount << " vertices" << std::endl;
+    std::cout << "   Buffer size: " << sizeof(vertices) << " bytes" << std::endl;
+}
+
 void Life::tick()
 {
     // Get current surface texture
@@ -56,7 +82,7 @@ void Life::tick()
     colorAttachment.view = view;
     colorAttachment.loadOp = WGPULoadOp_Clear;
     colorAttachment.storeOp = WGPUStoreOp_Store;
-    colorAttachment.clearValue = {0.0f, 0.0f, 0.4f, 1.0f};
+    colorAttachment.clearValue = {0.0f, 0.0f, 0.4f, 1.0f}; // Dark blue background
     colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 
     WGPURenderPassDescriptor passDesc = {};
@@ -66,6 +92,9 @@ void Life::tick()
 
     // Begin render pass
     WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(encoder, &passDesc);
+    
+    // TODO: In the next step, we'll set up shaders and draw the vertices here!
+    // For now, we just have an empty render pass that clears to blue
     
     // End render pass
     wgpuRenderPassEncoderEnd(pass);
