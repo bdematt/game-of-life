@@ -14,14 +14,20 @@ Life::Life(
     // Create vertex buffer with our square data
     createVertexBuffer();
     
+    // Create uniform buffer with grid size
+    createUniformBuffer();
+
     // Setup vertex layout description
     setupVertexLayout();
     
     // Create shader module
     createShaderModule();
-    
+
     // Create render pipeline
     createRenderPipeline();
+
+    // Create grid cell bind group
+    createBindGroup();
 }
 
 Life::~Life()
@@ -52,7 +58,7 @@ void Life::createVertexBuffer()
     // Create vertex buffer descriptor
     WGPUBufferDescriptor bufferDesc = {};
     bufferDesc.label = WGPUStringView{"Square Vertices", 15};
-    bufferDesc.size = sizeof(vertices); // Size in bytes
+    bufferDesc.size = sizeof(VERTICES); // Size in bytes
     bufferDesc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
     bufferDesc.mappedAtCreation = false;
 
@@ -65,10 +71,60 @@ void Life::createVertexBuffer()
     }
 
     // Write vertex data to buffer
-    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, vertices, sizeof(vertices));
+    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, VERTICES, sizeof(VERTICES));
     
-    std::cout << "✅ Vertex buffer created with " << vertexCount << " vertices" << std::endl;
-    std::cout << "   Buffer size: " << sizeof(vertices) << " bytes" << std::endl;
+    std::cout << "✅ Vertex buffer created with " << VERTEX_COUNT << " VERTICES" << std::endl;
+    std::cout << "   Buffer size: " << sizeof(VERTICES) << " bytes" << std::endl;
+}
+
+void Life::createUniformBuffer()
+{
+    std::cout << "🔧 Creating uniform buffer..." << std::endl;
+    
+    // Create vertex buffer descriptor
+    WGPUBufferDescriptor bufferDesc = {};
+    bufferDesc.label = WGPUStringView{"Grid Uniforms", 13};
+    bufferDesc.size = sizeof(UNIFORM_ARRAY); // Size in bytes
+    bufferDesc.usage = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+    bufferDesc.mappedAtCreation = false;
+
+    // Create the buffer
+    uniformBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    
+    if (!uniformBuffer) {
+        std::cout << "❌ Failed to create uniformBuffer buffer!" << std::endl;
+        return;
+    }
+
+    // Write vertex data to buffer
+    wgpuQueueWriteBuffer(queue, uniformBuffer, 0, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
+    
+    std::cout << "✅ Uniform buffer created with grize size " << GRID_SIZE << std::endl;
+    std::cout << "   Buffer size: " << sizeof(UNIFORM_ARRAY) << " bytes" << std::endl;
+}
+
+void Life::createBindGroup()
+{
+    // Create bind group entries
+    WGPUBindGroupEntry bindGroupEntry = {};
+    bindGroupEntry.binding = 0;
+    bindGroupEntry.buffer = uniformBuffer;
+    bindGroupEntry.offset = 0;
+    bindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+
+    // // Create bind group descriptor
+    WGPUBindGroupDescriptor bindGroupDesc = {};
+    bindGroupDesc.label = WGPUStringView{"Cell renderer bind group", 26};
+    bindGroupDesc.layout = wgpuRenderPipelineGetBindGroupLayout(cellPipeline, 0);
+    bindGroupDesc.entryCount = 1;
+    bindGroupDesc.entries = &bindGroupEntry;
+
+    // // Create the bind group
+    uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDesc);
+    if (!uniformBindGroup) {
+        std::cout << "❌ Failed to create Cell renderer bind group!" << std::endl;
+        return;
+    }
 }
 
 void Life::setupVertexLayout()
@@ -97,9 +153,12 @@ void Life::createShaderModule()
     
     // WGSL shader code as a string
     const char* shaderCode = R"(
+        @group(0) @binding(0) var<uniform> grid: vec2f;
+
         @vertex
-        fn vertexMain(@location(0) pos: vec2f) -> @builtin(position) vec4f {
-            return vec4f(pos, 0, 1);
+        fn vertexMain(@location(0) pos: vec2f) ->
+            @builtin(position) vec4f {
+            return vec4f(pos / grid, 0, 1);
         }
         
         @fragment
@@ -154,12 +213,26 @@ void Life::createRenderPipeline()
     fragmentState.entryPoint = WGPUStringView{"fragmentMain", 12};
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
+
+    // Create bind group layout for uniforms ✅ NEW
+    WGPUBindGroupLayoutEntry bindGroupLayoutEntry = {};
+    bindGroupLayoutEntry.binding = 0;
+    bindGroupLayoutEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    bindGroupLayoutEntry.buffer.type = WGPUBufferBindingType_Uniform;
+    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
+    
+    WGPUBindGroupLayoutDescriptor bindGroupLayoutDesc = {};
+    bindGroupLayoutDesc.label = WGPUStringView{"Cell Bind Group Layout", 23};
+    bindGroupLayoutDesc.entryCount = 1;
+    bindGroupLayoutDesc.entries = &bindGroupLayoutEntry;
+    
+    WGPUBindGroupLayout bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDesc);
     
     // Pipeline layout (auto)
     WGPUPipelineLayoutDescriptor layoutDesc = {};
     layoutDesc.label = WGPUStringView{"Cell Pipeline Layout", 20};
-    layoutDesc.bindGroupLayoutCount = 0;
-    layoutDesc.bindGroupLayouts = nullptr;
+    layoutDesc.bindGroupLayoutCount = 1;
+    layoutDesc.bindGroupLayouts = &bindGroupLayout;
     WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &layoutDesc);
     
     // Complete pipeline descriptor
@@ -233,8 +306,9 @@ void Life::tick()
     
     // Set the render pipeline and draw the square!
     wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
-    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(vertices));
-    wgpuRenderPassEncoderDraw(pass, vertexCount, 1, 0, 0);
+    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(VERTICES));
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, uniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, 1, 0, 0);
     
     // End render pass
     wgpuRenderPassEncoderEnd(pass);
