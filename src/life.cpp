@@ -156,9 +156,17 @@ void Life::createShaderModule()
         @group(0) @binding(0) var<uniform> grid: vec2f;
 
         @vertex
-        fn vertexMain(@location(0) pos: vec2f) ->
-            @builtin(position) vec4f {
-            return vec4f(pos / grid, 0, 1);
+        fn vertexMain(
+            @location(0) pos: vec2f,
+            @builtin(instance_index) instance: u32
+        ) -> @builtin(position) vec4f {
+
+            let i = f32(instance);
+            let cell = vec2f(i % grid.x, floor(i / grid.x)); // Grid cell X,Y (between 0 and GRID_SIZE-1)
+            let cellOffset = cell / grid * 2;
+            let gridPos = (pos + 1) / grid - 1 + cellOffset;
+
+            return vec4f(gridPos, 0, 1); 
         }
         
         @fragment
@@ -308,7 +316,7 @@ void Life::tick()
     wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
     wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(VERTICES));
     wgpuRenderPassEncoderSetBindGroup(pass, 0, uniformBindGroup, 0, nullptr);
-    wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, 1, 0, 0);
+    wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, INSTANCE_COUNT, 0, 0);
     
     // End render pass
     wgpuRenderPassEncoderEnd(pass);
