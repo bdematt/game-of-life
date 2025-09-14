@@ -8,7 +8,7 @@
 class Life
 {
 public:
-    Life(std::unique_ptr<WebGPUContext> context);
+    Life();
     void tick();
 
 private:

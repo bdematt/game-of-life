@@ -16,7 +16,7 @@ add_executable(
     index
     src/main.cpp
     src/webgpu-utils.cpp
-    src/life.cpp
+    src/Life.cpp
     src/WebGPUContext.cpp
 )
 

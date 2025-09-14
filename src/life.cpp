@@ -1,11 +1,11 @@
-#include "life.h"
+#include "Life.h"
 #include <iostream>
+#include <memory>
 
-Life::Life(
-    std::unique_ptr<WebGPUContext> context
-) : context(std::move(context))
+Life::Life()
 {
-    std::cout << "🔧 Life created" << std::endl;
+    std::cout << "🔧 Creating WebGPU Context..." << std::endl;
+    context = std::make_unique<WebGPUContext>();
     
     // Create vertex buffer with our square data
     createVertexBuffer();
@@ -383,8 +383,8 @@ void Life::tick()
     uint32_t bindGroupIndex = (frameCount / 120) % 2;
 
     // Get current surface texture
-    WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(context->getSurface(), &surfaceTexture);
+    WGPUSurfaceTexture surfaceTexture = context->getCurentSurfaceTexture();
+    // wgpuSurfaceGetCurrentTexture(context->getSurface(), &surfaceTexture);
     
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
         std::cout << "❌ Failed to get surface texture, status: " << surfaceTexture.status << std::endl;

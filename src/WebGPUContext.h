@@ -21,6 +21,11 @@ public:
     WGPUDevice getDevice() const { return device; }
     WGPUSurface getSurface() const { return surface; }
     WGPUQueue getQueue() const { return queue; }
+    WGPUSurfaceTexture getCurentSurfaceTexture() {
+        WGPUSurfaceTexture surfaceTexture;
+        wgpuSurfaceGetCurrentTexture(getSurface(), &surfaceTexture);
+        return surfaceTexture;
+    }
 
     // Surface configuration getters
     uint32_t getWidth() const { return width; }

@@ -115,8 +115,6 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * d
  */
 WGPUSurface createSurface(WGPUInstance instance)
 {
-    std::cout << "🔍 Creating surface..." << std::endl;
-
     struct CanvasSelectorChain {
         WGPUChainedStruct chain;
         const char *selector;

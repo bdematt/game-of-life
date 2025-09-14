@@ -1,10 +1,8 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #include <iostream>
-#include <memory>
-#include <utility>
 #include "webgpu-utils.h"
-#include "life.h"
+#include "Life.h"
 #include "WebGPUContext.h"
 
 // Globals
@@ -17,8 +15,7 @@ void main_loop() {
 int main() {
     std::cout << "🚀 Starting WebGPU application..." << std::endl;
     try {
-        auto context = std::make_unique<WebGPUContext>();
-        g_life = std::make_unique<Life>(std::move(context));
+        g_life = std::make_unique<Life>();
 
         emscripten_set_main_loop(main_loop, 0, 1);
         
