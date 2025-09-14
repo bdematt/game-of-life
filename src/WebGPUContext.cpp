@@ -1,26 +1,27 @@
 #include "WebGPUContext.h"
 #include "webgpu-utils.h"
+#include "Life.h"
 
 WebGPUContext::WebGPUContext()
 {
     try {
         instance = wgpuCreateInstance({});
-        if (!instance) throw InitializationError("Failed to create instance");
+        if (!instance) throw Life::InitializationError("Failed to create instance");
 
         adapter = requestAdapterSync(instance, &ADAPTER_OPTIONS);
-        if (!adapter) throw InitializationError("Failed to get adapter");
+        if (!adapter) throw Life::InitializationError("Failed to get adapter");
 
         device = requestDeviceSync(adapter, {});
-        if (!device) throw InitializationError("Failed to get device");
+        if (!device) throw Life::InitializationError("Failed to get device");
 
         surface = createSurface(instance);
-        if (!surface) throw InitializationError("Failed to create surface");
+        if (!surface) throw Life::InitializationError("Failed to create surface");
         
         surfaceConfig.device = device;
         wgpuSurfaceConfigure(surface, &surfaceConfig);
 
         queue = wgpuDeviceGetQueue(device);
-        if (!queue) throw InitializationError("Failed to get queue");
+        if (!queue) throw Life::InitializationError("Failed to get queue");
     } catch (...) {
         cleanup();  // Clean up on any failure
         throw;      // Re-throw the exception

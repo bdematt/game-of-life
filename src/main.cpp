@@ -21,7 +21,7 @@ int main() {
         
         return 0;
     }
-    catch (const WebGPUContext::InitializationError& e) {
+    catch (const Life::InitializationError& e) {
         std::cerr << "❌ " << e.what() << std::endl;
         return -1;
     }

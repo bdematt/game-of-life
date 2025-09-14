@@ -7,11 +7,6 @@
 class WebGPUContext
 {
 public:
-    class InitializationError : public std::runtime_error {
-        public:
-            InitializationError(const std::string& msg) 
-                : std::runtime_error("WebGPU initialization failed: " + msg) {}
-    };
     WebGPUContext();
     ~WebGPUContext();
 

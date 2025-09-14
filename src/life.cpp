@@ -1,21 +1,18 @@
 #include "Life.h"
 #include <iostream>
 #include <memory>
+#include "Geometry.h"
 
 Life::Life()
 {
     std::cout << "🔧 Creating WebGPU Context..." << std::endl;
     context = std::make_unique<WebGPUContext>();
-    
-    // Create vertex buffer with our square data
-    createVertexBuffer();
+
+    geometry = std::make_unique<Geometry>(*context.get());
     
     // Create uniform buffer with grid size
     createUniformBuffer();
 
-    // Setup vertex layout description
-    setupVertexLayout();
-    
     // Create shader module
     createShaderModule();
 
@@ -30,32 +27,6 @@ Life::Life()
 
     // Create grid cell bind group
     createBindGroup();
-}
-
-void Life::createVertexBuffer()
-{
-    std::cout << "🔧 Creating vertex buffer..." << std::endl;
-    
-    // Create vertex buffer descriptor
-    WGPUBufferDescriptor bufferDesc = {};
-    bufferDesc.label = WGPUStringView{"Square Vertices", 15};
-    bufferDesc.size = sizeof(VERTICES); // Size in bytes
-    bufferDesc.usage = WGPUBufferUsage_Vertex | WGPUBufferUsage_CopyDst;
-    bufferDesc.mappedAtCreation = false;
-
-    // Create the buffer
-    vertexBuffer = wgpuDeviceCreateBuffer(context->getDevice(), &bufferDesc);
-    
-    if (!vertexBuffer) {
-        std::cout << "❌ Failed to create vertex buffer!" << std::endl;
-        return;
-    }
-
-    // Write vertex data to buffer
-    wgpuQueueWriteBuffer(context->getQueue(), vertexBuffer, 0, VERTICES, sizeof(VERTICES));
-    
-    std::cout << "✅ Vertex buffer created with " << VERTEX_COUNT << " VERTICES" << std::endl;
-    std::cout << "   Buffer size: " << sizeof(VERTICES) << " bytes" << std::endl;
 }
 
 void Life::createUniformBuffer()
@@ -231,26 +202,6 @@ void Life::createBindGroupLayout()
     std::cout << "✅ Bind group layout created with 2 bindings!" << std::endl;
 }
 
-void Life::setupVertexLayout()
-{
-    std::cout << "🔧 Setting up vertex layout..." << std::endl;
-    
-    // Define the vertex attribute (position)
-    vertexAttribute.format = WGPUVertexFormat_Float32x2;  // Two 32-bit floats (X, Y)
-    vertexAttribute.offset = 0;                           // Start at beginning of vertex
-    vertexAttribute.shaderLocation = 0;                   // Links to vertex shader input at location 0
-    
-    // Define the vertex buffer layout
-    vertexBufferLayout.arrayStride = 8;                   // 8 bytes per vertex (2 floats × 4 bytes each)
-    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex; // Step per vertex (not per instance)
-    vertexBufferLayout.attributeCount = 1;                // We have one attribute (position)
-    vertexBufferLayout.attributes = &vertexAttribute;      // Point to our attribute
-    
-    std::cout << "✅ Vertex layout configured:" << std::endl;
-    std::cout << "   Array stride: " << vertexBufferLayout.arrayStride << " bytes" << std::endl;
-    std::cout << "   Attribute format: float32x2 at shader location " << vertexAttribute.shaderLocation << std::endl;
-}
-
 void Life::createShaderModule()
 {
     std::cout << "🔧 Creating shader module..." << std::endl;
@@ -329,7 +280,8 @@ void Life::createRenderPipeline()
     vertexState.module = cellShaderModule;
     vertexState.entryPoint = WGPUStringView{"vertexMain", 10};
     vertexState.bufferCount = 1;
-    vertexState.buffers = &vertexBufferLayout;
+    auto layout = geometry->getVertexBufferLayout();
+    vertexState.buffers = &layout;
     
     // Fragment state  
     WGPUColorTargetState colorTarget = {};
@@ -425,9 +377,9 @@ void Life::tick()
     
     // Set the render pipeline and draw the square!
     wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
-    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(VERTICES));
+    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, geometry->getVertexBuffer(), 0, geometry->getSizeOfVertices());
     wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroups[bindGroupIndex], 0, nullptr);
-    wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, INSTANCE_COUNT, 0, 0);
+    wgpuRenderPassEncoderDraw(pass, geometry->getVertexCount(), INSTANCE_COUNT, 0, 0);
     
     // End render pass
     wgpuRenderPassEncoderEnd(pass);

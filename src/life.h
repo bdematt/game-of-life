@@ -4,22 +4,26 @@
 #include <vector>
 #include <memory>
 #include "WebGPUContext.h"
+#include "Geometry.h"
 
 class Life
 {
 public:
+    class InitializationError : public std::runtime_error {
+        public:
+            InitializationError(const std::string& msg) 
+                : std::runtime_error("Initialization failed: " + msg) {}
+    };
     Life();
     void tick();
 
 private:
     // WebGPU Context
     std::unique_ptr<WebGPUContext> context;
-    
-    // Vertex buffer and layout
-    WGPUBuffer vertexBuffer = nullptr;
-    WGPUVertexBufferLayout vertexBufferLayout = {};
-    WGPUVertexAttribute vertexAttribute = {};
 
+    // Component Classes
+    std::unique_ptr<Geometry> geometry; 
+    
     // Uniform Buffer & Bindgroup
     WGPUBuffer uniformBuffer = nullptr;
     WGPUBindGroup uniformBindGroup = nullptr;
@@ -42,20 +46,6 @@ private:
     int width = 800;   // Canvas dimensions
     int height = 600;
 
-    // Vertex data for a square (two triangles)
-    // In Normalized Device Coordinates (-1 to 1)
-    static constexpr float VERTICES[] = {
-        // X,    Y,
-        -0.8f, -0.8f, // Triangle 1 (Blue)
-         0.8f, -0.8f,
-         0.8f,  0.8f,
-
-        -0.8f, -0.8f, // Triangle 2 (Red) 
-         0.8f,  0.8f,
-        -0.8f,  0.8f,
-    };
-    
-    static constexpr uint32_t VERTEX_COUNT = 6; // 6 vertices (2 triangles * 3 vertices each)
     static constexpr uint32_t GRID_SIZE = 32;
     static constexpr uint32_t INSTANCE_COUNT = GRID_SIZE * GRID_SIZE;
     static constexpr float UNIFORM_ARRAY[2] = {
@@ -68,9 +58,7 @@ private:
 
     // Internal methods
     void createShaderModule();
-    void createVertexBuffer();
     void createUniformBuffer();
-    void setupVertexLayout();
     void createRenderPipeline();
     void createCellStateStorageBuffer();
     void createBindGroupLayout();
