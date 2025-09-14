@@ -17,6 +17,7 @@ add_executable(
     src/main.cpp
     src/webgpu-utils.cpp
     src/life.cpp
+    src/WebGPUContext.cpp
 )
 
 # Create dist directory for web assets

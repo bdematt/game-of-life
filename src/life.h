@@ -2,22 +2,18 @@
 
 #include <webgpu/webgpu.h>
 #include <vector>
+#include <memory>
+#include "WebGPUContext.h"
 
 class Life
 {
 public:
-    Life(WGPUInstance instance, WGPUAdapter adapter, WGPUDevice device, WGPUSurface surface, WGPUQueue queue);
-    ~Life();
-
+    Life(std::unique_ptr<WebGPUContext> context);
     void tick();
 
 private:
-    // WebGPU objects
-    WGPUInstance instance = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
-    WGPUSurface surface = nullptr;
+    // WebGPU Context
+    std::unique_ptr<WebGPUContext> context;
     
     // Vertex buffer and layout
     WGPUBuffer vertexBuffer = nullptr;

@@ -2,12 +2,8 @@
 #include <iostream>
 
 Life::Life(
-    WGPUInstance instance,
-    WGPUAdapter adapter,
-    WGPUDevice device,
-    WGPUSurface surface,
-    WGPUQueue queue
-) : instance(instance), adapter(adapter), device(device), surface(surface), queue(queue)
+    std::unique_ptr<WebGPUContext> context
+) : context(std::move(context))
 {
     std::cout << "🔧 Life created" << std::endl;
     
@@ -36,27 +32,6 @@ Life::Life(
     createBindGroup();
 }
 
-Life::~Life()
-{
-    // Clean up render pipeline
-    if (cellPipeline) wgpuRenderPipelineRelease(cellPipeline);
-    
-    // Clean up shader module
-    if (cellShaderModule) wgpuShaderModuleRelease(cellShaderModule);
-    
-    // Clean up vertex buffer
-    if (vertexBuffer) wgpuBufferRelease(vertexBuffer);
-    
-    // Clean up WebGPU resources
-    if (surface) wgpuSurfaceRelease(surface);
-    if (queue) wgpuQueueRelease(queue);
-    if (device) wgpuDeviceRelease(device);
-    if (adapter) wgpuAdapterRelease(adapter);
-    if (instance) wgpuInstanceRelease(instance);
-
-    std::cout << "🔧 Life destroyed" << std::endl;
-}
-
 void Life::createVertexBuffer()
 {
     std::cout << "🔧 Creating vertex buffer..." << std::endl;
@@ -69,7 +44,7 @@ void Life::createVertexBuffer()
     bufferDesc.mappedAtCreation = false;
 
     // Create the buffer
-    vertexBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    vertexBuffer = wgpuDeviceCreateBuffer(context->getDevice(), &bufferDesc);
     
     if (!vertexBuffer) {
         std::cout << "❌ Failed to create vertex buffer!" << std::endl;
@@ -77,7 +52,7 @@ void Life::createVertexBuffer()
     }
 
     // Write vertex data to buffer
-    wgpuQueueWriteBuffer(queue, vertexBuffer, 0, VERTICES, sizeof(VERTICES));
+    wgpuQueueWriteBuffer(context->getQueue(), vertexBuffer, 0, VERTICES, sizeof(VERTICES));
     
     std::cout << "✅ Vertex buffer created with " << VERTEX_COUNT << " VERTICES" << std::endl;
     std::cout << "   Buffer size: " << sizeof(VERTICES) << " bytes" << std::endl;
@@ -95,7 +70,7 @@ void Life::createUniformBuffer()
     bufferDesc.mappedAtCreation = false;
 
     // Create the buffer
-    uniformBuffer = wgpuDeviceCreateBuffer(device, &bufferDesc);
+    uniformBuffer = wgpuDeviceCreateBuffer(context->getDevice(), &bufferDesc);
     
     if (!uniformBuffer) {
         std::cout << "❌ Failed to create uniformBuffer buffer!" << std::endl;
@@ -103,7 +78,7 @@ void Life::createUniformBuffer()
     }
 
     // Write vertex data to buffer
-    wgpuQueueWriteBuffer(queue, uniformBuffer, 0, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
+    wgpuQueueWriteBuffer(context->getQueue(), uniformBuffer, 0, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
     
     std::cout << "✅ Uniform buffer created with grize size " << GRID_SIZE << std::endl;
     std::cout << "   Buffer size: " << sizeof(UNIFORM_ARRAY) << " bytes" << std::endl;
@@ -139,7 +114,7 @@ void Life::createBindGroup()
     bindGroupDescA.entryCount = 2;
     bindGroupDescA.entries = bindGroupEntriesA;
 
-    bindGroups[0] = wgpuDeviceCreateBindGroup(device, &bindGroupDescA);
+    bindGroups[0] = wgpuDeviceCreateBindGroup(context->getDevice(), &bindGroupDescA);
 
     // Create bind group B (uses storage buffer B)
     WGPUBindGroupEntry storageBindGroupEntryB = {};
@@ -159,7 +134,7 @@ void Life::createBindGroup()
     bindGroupDescB.entryCount = 2;
     bindGroupDescB.entries = bindGroupEntriesB;
 
-    bindGroups[1] = wgpuDeviceCreateBindGroup(device, &bindGroupDescB);
+    bindGroups[1] = wgpuDeviceCreateBindGroup(context->getDevice(), &bindGroupDescB);
 
     // Check if both bind groups were created successfully
     if (!bindGroups[0] || !bindGroups[1]) {
@@ -183,14 +158,14 @@ void Life::createCellStateStorageBuffer()
     bufferADesc.size = cellStateArray.size() * sizeof(uint32_t);
     bufferADesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
     bufferADesc.mappedAtCreation = false;
-    cellStateStorageBufferA = wgpuDeviceCreateBuffer(device, &bufferADesc);
+    cellStateStorageBufferA = wgpuDeviceCreateBuffer(context->getDevice(), &bufferADesc);
 
     WGPUBufferDescriptor bufferBDesc = {};
     bufferBDesc.label = WGPUStringView{"Cell State B", 12};
     bufferBDesc.size = cellStateArray.size() * sizeof(uint32_t);
     bufferBDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
     bufferBDesc.mappedAtCreation = false;
-    cellStateStorageBufferB = wgpuDeviceCreateBuffer(device, &bufferBDesc);
+    cellStateStorageBufferB = wgpuDeviceCreateBuffer(context->getDevice(), &bufferBDesc);
     
     if (!cellStateStorageBufferA || !cellStateStorageBufferB) {
         std::cout << "❌ Failed to create cell state storage buffer!" << std::endl;
@@ -201,7 +176,7 @@ void Life::createCellStateStorageBuffer()
     for (size_t i = 0; i < cellStateArray.size(); i++) {
         cellStateArray[i] = i % 2 == 1;
     }
-    wgpuQueueWriteBuffer(queue, cellStateStorageBufferA, 0, 
+    wgpuQueueWriteBuffer(context->getQueue(), cellStateStorageBufferA, 0, 
                          cellStateArray.data(), 
                          cellStateArray.size() * sizeof(uint32_t));
     
@@ -209,7 +184,7 @@ void Life::createCellStateStorageBuffer()
     for (size_t i = 0; i < cellStateArray.size(); i++) {
         cellStateArray[i] = i % 2 == 0;
     }
-    wgpuQueueWriteBuffer(queue, cellStateStorageBufferB, 0, 
+    wgpuQueueWriteBuffer(context->getQueue(), cellStateStorageBufferB, 0, 
                          cellStateArray.data(), 
                          cellStateArray.size() * sizeof(uint32_t));
     
@@ -246,7 +221,7 @@ void Life::createBindGroupLayout()
     layoutDesc.entries = bindingLayouts;
     
     // Create the bind group layout
-    bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &layoutDesc);
+    bindGroupLayout = wgpuDeviceCreateBindGroupLayout(context->getDevice(), &layoutDesc);
     
     if (!bindGroupLayout) {
         std::cout << "❌ Failed to create bind group layout!" << std::endl;
@@ -331,7 +306,7 @@ void Life::createShaderModule()
     shaderModuleDesc.nextInChain = &source.chain;
     
     // Create the shader module
-    cellShaderModule = wgpuDeviceCreateShaderModule(device, &shaderModuleDesc);
+    cellShaderModule = wgpuDeviceCreateShaderModule(context->getDevice(), &shaderModuleDesc);
     
     if (!cellShaderModule) {
         std::cout << "❌ Failed to create shader module!" << std::endl;
@@ -374,7 +349,7 @@ void Life::createRenderPipeline()
     layoutDesc.label = WGPUStringView{"Cell Pipeline Layout", 20};
     layoutDesc.bindGroupLayoutCount = 1;
     layoutDesc.bindGroupLayouts = layouts; // Use our explicit layout
-    WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &layoutDesc);
+    WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(context->getDevice(), &layoutDesc);
     
     // Complete pipeline descriptor
     pipelineDesc.layout = pipelineLayout;
@@ -389,7 +364,7 @@ void Life::createRenderPipeline()
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
     
     // Create the pipeline
-    cellPipeline = wgpuDeviceCreateRenderPipeline(device, &pipelineDesc);
+    cellPipeline = wgpuDeviceCreateRenderPipeline(context->getDevice(), &pipelineDesc);
     
     // Clean up intermediate layout
     wgpuPipelineLayoutRelease(pipelineLayout);
@@ -409,7 +384,7 @@ void Life::tick()
 
     // Get current surface texture
     WGPUSurfaceTexture surfaceTexture;
-    wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
+    wgpuSurfaceGetCurrentTexture(context->getSurface(), &surfaceTexture);
     
     if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
         std::cout << "❌ Failed to get surface texture, status: " << surfaceTexture.status << std::endl;
@@ -430,7 +405,7 @@ void Life::tick()
     // Create command encoder
     WGPUCommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label = WGPUStringView{"Life Command Encoder", 21};
-    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(device, &encoderDesc);
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(context->getDevice(), &encoderDesc);
 
     // Create render pass with color attachment
     WGPURenderPassColorAttachment colorAttachment = {};
@@ -463,14 +438,15 @@ void Life::tick()
     WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, &cmdDesc);
 
     // Submit command buffer to queue
-    wgpuQueueSubmit(queue, 1, &commandBuffer);
+    wgpuQueueSubmit(context->getQueue(), 1, &commandBuffer);
 
     // Note: No need to call wgpuSurfacePresent() when using emscripten_set_main_loop
     // Emscripten handles presentation automatically via requestAnimationFrame
 
     // Clean up resources
-    wgpuTextureViewRelease(view);
     wgpuCommandBufferRelease(commandBuffer);
     wgpuCommandEncoderRelease(encoder);
     wgpuRenderPassEncoderRelease(pass);
+    wgpuTextureViewRelease(view);
+    wgpuTextureRelease(surfaceTexture.texture);
 }

@@ -49,7 +49,7 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions 
     wgpuInstanceRequestAdapter(instance, options, callbackInfo);
 
     while (!userData.requestEnded) {
-        emscripten_sleep(1); // Sleep for 1ms to yield control
+        emscripten_sleep(1);
     }
 
     assert(userData.requestEnded);
@@ -76,10 +76,10 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * d
         void* userdata2
     ) {
         UserData& userData = *reinterpret_cast<UserData*>(userdata1);
-        if (status == WGPURequestDeviceStatus_Success) {  // Fixed: Use WGPURequestDeviceStatus_Success
+        if (status == WGPURequestDeviceStatus_Success) {
             userData.device = device;
         } else {
-            std::cout << "Could not get WebGPU device: ";  // Fixed: Say "device" not "adapter"
+            std::cout << "Could not get WebGPU device: "; 
             if (message.data && message.length > 0) {
                 std::cout << std::string(message.data, message.length);
             }
@@ -102,7 +102,7 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * d
     // Wait for completion
     while (!userData.requestEnded) {
         #ifdef __EMSCRIPTEN__
-        emscripten_sleep(1);  // 1ms is usually enough, 100ms might feel sluggish
+        emscripten_sleep(1);
         #endif
     }
 
@@ -132,29 +132,4 @@ WGPUSurface createSurface(WGPUInstance instance)
     surfaceDesc.nextInChain = &canvasChain.chain;
 
     return wgpuInstanceCreateSurface(instance, &surfaceDesc);
-}
-
-/**
- * Utility function to create a WebGPU surface
- */
-void configureSurface(WGPUDevice device, WGPUSurface surface)
-{
-    std::cout << "🔍 Configuring surface..." << std::endl;
-
-    if (!surface) {
-        std::cout << "❌ Cannot configure - surface is null!" << std::endl;
-        return;
-    }
-
-    WGPUSurfaceConfiguration config = {};
-    config.device = device;
-    config.format = WGPUTextureFormat_BGRA8Unorm;
-    config.usage = WGPUTextureUsage_RenderAttachment;
-    config.width = 800;   // Use class member variables
-    config.height = 600; // Use class member variables
-    config.presentMode = WGPUPresentMode_Fifo;
-
-    wgpuSurfaceConfigure(surface, &config);
-    
-    std::cout << "✅ Surface configured for " << config.width << "x" << config.height << std::endl;
 }
