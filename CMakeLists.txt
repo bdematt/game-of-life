@@ -18,6 +18,7 @@ add_executable(
     src/webgpu-utils.cpp
     src/Life.cpp
     src/WebGPUContext.cpp
+    src/RenderPipeline.cpp
     src/Geometry.cpp
 )
 

@@ -9,12 +9,10 @@ Life::Life()
     context = std::make_unique<WebGPUContext>();
 
     geometry = std::make_unique<Geometry>(*context.get());
+    pipeline = std::make_unique<RenderPipeline>(*context.get());
     
     // Create uniform buffer with grid size
     createUniformBuffer();
-
-    // Create shader module
-    createShaderModule();
 
     // Create cell state storage buffer
     createCellStateStorageBuffer();
@@ -202,71 +200,6 @@ void Life::createBindGroupLayout()
     std::cout << "✅ Bind group layout created with 2 bindings!" << std::endl;
 }
 
-void Life::createShaderModule()
-{
-    std::cout << "🔧 Creating shader module..." << std::endl;
-    
-    // WGSL shader code as a string
-    const char* shaderCode = R"(
-        struct VertexInput {
-            @location(0) pos: vec2f,
-            @builtin(instance_index) instance: u32,
-        };
-
-        struct VertexOutput {
-            @builtin(position) pos: vec4f,
-            @location(0) cell: vec2f
-        };
-
-        @group(0) @binding(0) var<uniform> grid: vec2f;
-        @group(0) @binding(1) var<storage> cellState: array<u32>;
-
-        @vertex
-        fn vertexMain(input: VertexInput) -> VertexOutput {
-
-            let i = f32(input.instance);
-            let cell = vec2f(i % grid.x, floor(i / grid.x)); // Grid cell X,Y (between 0 and GRID_SIZE-1)
-            let state = f32(cellState[input.instance]);
-            let cellOffset = cell / grid * 2;
-            let gridPos = (input.pos * state + 1) / grid - 1 + cellOffset;
-
-            var output: VertexOutput;
-            output.pos = vec4f(gridPos, 0, 1);
-            output.cell = cell;
-            return output;
-        }
-
-        struct FragInput {
-            @location(0) cell: vec2f,
-        };
-        
-        @fragment
-        fn fragmentMain(input: FragInput) -> @location(0) vec4f {
-            let c = input.cell / grid;
-            return vec4f(c, 1-c.y, 1);
-        }
-    )";
-    
-    // Create shader module descriptor
-    WGPUShaderSourceWGSL source = {};
-    source.chain.sType = WGPUSType_ShaderSourceWGSL;
-    source.code = WGPUStringView{shaderCode, strlen(shaderCode)};
-    
-    WGPUShaderModuleDescriptor shaderModuleDesc = {};
-    shaderModuleDesc.label = WGPUStringView{"Cell Shader", 11};
-    shaderModuleDesc.nextInChain = &source.chain;
-    
-    // Create the shader module
-    cellShaderModule = wgpuDeviceCreateShaderModule(context->getDevice(), &shaderModuleDesc);
-    
-    if (!cellShaderModule) {
-        std::cout << "❌ Failed to create shader module!" << std::endl;
-        return;
-    }
-    
-    std::cout << "✅ Shader module created with vertex and fragment shaders!" << std::endl;
-}
-
 void Life::createRenderPipeline()
 {
     std::cout << "🔧 Creating render pipeline..." << std::endl;
@@ -277,7 +210,7 @@ void Life::createRenderPipeline()
     
     // Vertex state
     WGPUVertexState vertexState = {};
-    vertexState.module = cellShaderModule;
+    vertexState.module = pipeline->getCellShaderModule();
     vertexState.entryPoint = WGPUStringView{"vertexMain", 10};
     vertexState.bufferCount = 1;
     auto layout = geometry->getVertexBufferLayout();
@@ -290,7 +223,7 @@ void Life::createRenderPipeline()
     colorTarget.writeMask = WGPUColorWriteMask_All;
     
     WGPUFragmentState fragmentState = {};
-    fragmentState.module = cellShaderModule;
+    fragmentState.module = pipeline->getCellShaderModule();
     fragmentState.entryPoint = WGPUStringView{"fragmentMain", 12};
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
@@ -336,23 +269,10 @@ void Life::tick()
 
     // Get current surface texture
     WGPUSurfaceTexture surfaceTexture = context->getCurentSurfaceTexture();
-    // wgpuSurfaceGetCurrentTexture(context->getSurface(), &surfaceTexture);
-    
-    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal) {
-        std::cout << "❌ Failed to get surface texture, status: " << surfaceTexture.status << std::endl;
-        return;
-    }
+    if (surfaceTexture.status != WGPUSurfaceGetCurrentTextureStatus_SuccessOptimal)
+        throw Life::InitializationError("❌ Failed to get surface texture");
 
-    // Create texture view
-    WGPUTextureViewDescriptor viewDesc = {};
-    viewDesc.format = WGPUTextureFormat_BGRA8Unorm;
-    viewDesc.dimension = WGPUTextureViewDimension_2D;
-    viewDesc.baseMipLevel = 0;
-    viewDesc.mipLevelCount = 1;
-    viewDesc.baseArrayLayer = 0;
-    viewDesc.arrayLayerCount = 1;
-    
-    WGPUTextureView view = wgpuTextureCreateView(surfaceTexture.texture, &viewDesc);
+    WGPUTextureView view = context->createCurrentTextureView(surfaceTexture.texture);
 
     // Create command encoder
     WGPUCommandEncoderDescriptor encoderDesc = {};

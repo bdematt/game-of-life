@@ -27,6 +27,9 @@ public:
     uint32_t getHeight() const { return height; }
     const WGPUSurfaceConfiguration& getSurfaceConfig() const { return surfaceConfig; }
 
+    WGPUTextureView createCurrentTextureView(WGPUTexture texture) {
+        return wgpuTextureCreateView(texture, &TEXTURE_VIEW_DESC);
+    }
 
 private:
     // WebGPU Context
@@ -44,7 +47,14 @@ private:
     static constexpr WGPURequestAdapterOptions ADAPTER_OPTIONS = {
         .powerPreference = WGPUPowerPreference_HighPerformance
     };
-
+    static constexpr WGPUTextureViewDescriptor TEXTURE_VIEW_DESC = {
+        .format = WGPUTextureFormat_BGRA8Unorm,
+        .dimension = WGPUTextureViewDimension_2D,
+        .baseMipLevel = 0,
+        .mipLevelCount = 1,
+        .baseArrayLayer = 0,
+        .arrayLayerCount = 1
+    };
     WGPUSurfaceConfiguration surfaceConfig = {
         .format = WGPUTextureFormat_BGRA8Unorm,
         .usage = WGPUTextureUsage_RenderAttachment,

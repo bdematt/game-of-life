@@ -1,3 +1,4 @@
+#include <iostream>
 #include "Geometry.h"
 #include "Life.h"
 
@@ -10,5 +11,5 @@ Geometry::Geometry(WebGPUContext& context)
 }
 Geometry::~Geometry()
 {
-    wgpuBufferRelease(vertexBuffer);
+    if (vertexBuffer) wgpuBufferRelease(vertexBuffer);
 }
