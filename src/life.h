@@ -67,6 +67,9 @@ private:
         static_cast<float>(GRID_SIZE)
     };
 
+    // Frame count
+    uint32_t frameCount = 0;
+
     // Internal methods
     void createShaderModule();
     void createVertexBuffer();

@@ -175,10 +175,9 @@ void Life::createCellStateStorageBuffer()
     std::cout << "🔧 Creating storage buffer..." << std::endl;
 
     // Initialize Array to 0's
-    cellStateArray.resize(GRID_SIZE * GRID_SIZE, 1);
-    
-    // Create storage buffer descriptor
-    // Cell State A & B for ping pong updates
+    cellStateArray.resize(GRID_SIZE * GRID_SIZE, 0);
+
+    // Create both buffer descriptors first
     WGPUBufferDescriptor bufferADesc = {};
     bufferADesc.label = WGPUStringView{"Cell State A", 12};
     bufferADesc.size = cellStateArray.size() * sizeof(uint32_t);
@@ -191,29 +190,28 @@ void Life::createCellStateStorageBuffer()
     bufferBDesc.size = cellStateArray.size() * sizeof(uint32_t);
     bufferBDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
     bufferBDesc.mappedAtCreation = false;
-    cellStateStorageBufferA = wgpuDeviceCreateBuffer(device, &bufferBDesc);
+    cellStateStorageBufferB = wgpuDeviceCreateBuffer(device, &bufferBDesc);
     
     if (!cellStateStorageBufferA || !cellStateStorageBufferB) {
         std::cout << "❌ Failed to create cell state storage buffer!" << std::endl;
         return;
     }
 
-    // Write initial data to the storage buffer
-    wgpuQueueWriteBuffer(
-        queue, 
-        cellStateStorageBufferA, // Now this is wrong? What do I write here?
-        0, // offset
-        cellStateArray.data(), 
-        cellStateArray.size() * sizeof(uint32_t)
-    );
-
-    wgpuQueueWriteBuffer(
-        queue, 
-        cellStateStorageBufferB, // Write to buffer B
-        0, // offset
-        cellStateArray.data(), 
-        cellStateArray.size() * sizeof(uint32_t)
-    );
+    // Pattern A: odd indices (1, 3, 5...)
+    for (size_t i = 0; i < cellStateArray.size(); i++) {
+        cellStateArray[i] = i % 2 == 1;
+    }
+    wgpuQueueWriteBuffer(queue, cellStateStorageBufferA, 0, 
+                         cellStateArray.data(), 
+                         cellStateArray.size() * sizeof(uint32_t));
+    
+    // Pattern B: even indices (0, 2, 4...)
+    for (size_t i = 0; i < cellStateArray.size(); i++) {
+        cellStateArray[i] = i % 2 == 0;
+    }
+    wgpuQueueWriteBuffer(queue, cellStateStorageBufferB, 0, 
+                         cellStateArray.data(), 
+                         cellStateArray.size() * sizeof(uint32_t));
     
     std::cout << "✅ Cell state storage buffer created!" << std::endl;
 }
@@ -406,6 +404,9 @@ void Life::createRenderPipeline()
 
 void Life::tick()
 {
+    frameCount++;
+    uint32_t bindGroupIndex = (frameCount / 120) % 2;
+
     // Get current surface texture
     WGPUSurfaceTexture surfaceTexture;
     wgpuSurfaceGetCurrentTexture(surface, &surfaceTexture);
@@ -450,7 +451,7 @@ void Life::tick()
     // Set the render pipeline and draw the square!
     wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
     wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(VERTICES));
-    wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroups[0], 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroups[bindGroupIndex], 0, nullptr);
     wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, INSTANCE_COUNT, 0, 0);
     
     // End render pass
