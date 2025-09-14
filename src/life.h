@@ -27,10 +27,19 @@ private:
     // Uniform Buffer & Bindgroup
     WGPUBuffer uniformBuffer = nullptr;
     WGPUBindGroup uniformBindGroup = nullptr;
+
+    // Cell State Storage Buffer
+    WGPUBuffer cellStateStorageBufferA = nullptr;
+    WGPUBuffer cellStateStorageBufferB = nullptr;
+    std::vector<uint32_t> cellStateArray;
     
     // Shader module and render pipeline
     WGPUShaderModule cellShaderModule = nullptr;
     WGPURenderPipeline cellPipeline = nullptr;
+
+    // Bind group
+    WGPUBindGroupLayout bindGroupLayout = nullptr;
+    WGPUBindGroup bindGroups[2] = {nullptr, nullptr};
     
     // Surface state
     bool surfaceCreated = false;
@@ -64,5 +73,7 @@ private:
     void createUniformBuffer();
     void setupVertexLayout();
     void createRenderPipeline();
+    void createCellStateStorageBuffer();
+    void createBindGroupLayout();
     void createBindGroup();
 };

@@ -23,6 +23,12 @@ Life::Life(
     // Create shader module
     createShaderModule();
 
+    // Create cell state storage buffer
+    createCellStateStorageBuffer();
+
+    // Create bind group layout, specifying cell state storage and uniform buffers
+    createBindGroupLayout();
+
     // Create render pipeline
     createRenderPipeline();
 
@@ -103,28 +109,153 @@ void Life::createUniformBuffer()
     std::cout << "   Buffer size: " << sizeof(UNIFORM_ARRAY) << " bytes" << std::endl;
 }
 
+// Then update your createBindGroup method:
 void Life::createBindGroup()
 {
-    // Create bind group entries
-    WGPUBindGroupEntry bindGroupEntry = {};
-    bindGroupEntry.binding = 0;
-    bindGroupEntry.buffer = uniformBuffer;
-    bindGroupEntry.offset = 0;
-    bindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+    std::cout << "🔧 Creating bind groups..." << std::endl;
+    
+    // Create uniform bind group entry (same for both bind groups)
+    WGPUBindGroupEntry uniformBindGroupEntry = {};
+    uniformBindGroupEntry.binding = 0;
+    uniformBindGroupEntry.buffer = uniformBuffer;
+    uniformBindGroupEntry.offset = 0;
+    uniformBindGroupEntry.size = sizeof(UNIFORM_ARRAY);
 
-    // // Create bind group descriptor
-    WGPUBindGroupDescriptor bindGroupDesc = {};
-    bindGroupDesc.label = WGPUStringView{"Cell renderer bind group", 26};
-    bindGroupDesc.layout = wgpuRenderPipelineGetBindGroupLayout(cellPipeline, 0);
-    bindGroupDesc.entryCount = 1;
-    bindGroupDesc.entries = &bindGroupEntry;
+    // Create bind group A (uses storage buffer A)
+    WGPUBindGroupEntry storageBindGroupEntryA = {};
+    storageBindGroupEntryA.binding = 1;
+    storageBindGroupEntryA.buffer = cellStateStorageBufferA;
+    storageBindGroupEntryA.offset = 0;
+    storageBindGroupEntryA.size = cellStateArray.size() * sizeof(uint32_t);
 
-    // // Create the bind group
-    uniformBindGroup = wgpuDeviceCreateBindGroup(device, &bindGroupDesc);
-    if (!uniformBindGroup) {
-        std::cout << "❌ Failed to create Cell renderer bind group!" << std::endl;
+    WGPUBindGroupEntry bindGroupEntriesA[] = {
+        uniformBindGroupEntry,
+        storageBindGroupEntryA
+    };
+
+    WGPUBindGroupDescriptor bindGroupDescA = {};
+    bindGroupDescA.label = WGPUStringView{"Cell renderer bind group A", 28};
+    bindGroupDescA.layout = bindGroupLayout;
+    bindGroupDescA.entryCount = 2;
+    bindGroupDescA.entries = bindGroupEntriesA;
+
+    bindGroups[0] = wgpuDeviceCreateBindGroup(device, &bindGroupDescA);
+
+    // Create bind group B (uses storage buffer B)
+    WGPUBindGroupEntry storageBindGroupEntryB = {};
+    storageBindGroupEntryB.binding = 1;
+    storageBindGroupEntryB.buffer = cellStateStorageBufferB;
+    storageBindGroupEntryB.offset = 0;
+    storageBindGroupEntryB.size = cellStateArray.size() * sizeof(uint32_t);
+
+    WGPUBindGroupEntry bindGroupEntriesB[] = {
+        uniformBindGroupEntry,
+        storageBindGroupEntryB
+    };
+
+    WGPUBindGroupDescriptor bindGroupDescB = {};
+    bindGroupDescB.label = WGPUStringView{"Cell renderer bind group B", 28};
+    bindGroupDescB.layout = bindGroupLayout;
+    bindGroupDescB.entryCount = 2;
+    bindGroupDescB.entries = bindGroupEntriesB;
+
+    bindGroups[1] = wgpuDeviceCreateBindGroup(device, &bindGroupDescB);
+
+    // Check if both bind groups were created successfully
+    if (!bindGroups[0] || !bindGroups[1]) {
+        std::cout << "❌ Failed to create bind groups!" << std::endl;
         return;
     }
+    
+    std::cout << "✅ Both bind groups created successfully!" << std::endl;
+}
+
+void Life::createCellStateStorageBuffer()
+{
+    std::cout << "🔧 Creating storage buffer..." << std::endl;
+
+    // Initialize Array to 0's
+    cellStateArray.resize(GRID_SIZE * GRID_SIZE, 1);
+    
+    // Create storage buffer descriptor
+    // Cell State A & B for ping pong updates
+    WGPUBufferDescriptor bufferADesc = {};
+    bufferADesc.label = WGPUStringView{"Cell State A", 12};
+    bufferADesc.size = cellStateArray.size() * sizeof(uint32_t);
+    bufferADesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+    bufferADesc.mappedAtCreation = false;
+    cellStateStorageBufferA = wgpuDeviceCreateBuffer(device, &bufferADesc);
+
+    WGPUBufferDescriptor bufferBDesc = {};
+    bufferBDesc.label = WGPUStringView{"Cell State B", 12};
+    bufferBDesc.size = cellStateArray.size() * sizeof(uint32_t);
+    bufferBDesc.usage = WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst;
+    bufferBDesc.mappedAtCreation = false;
+    cellStateStorageBufferA = wgpuDeviceCreateBuffer(device, &bufferBDesc);
+    
+    if (!cellStateStorageBufferA || !cellStateStorageBufferB) {
+        std::cout << "❌ Failed to create cell state storage buffer!" << std::endl;
+        return;
+    }
+
+    // Write initial data to the storage buffer
+    wgpuQueueWriteBuffer(
+        queue, 
+        cellStateStorageBufferA, // Now this is wrong? What do I write here?
+        0, // offset
+        cellStateArray.data(), 
+        cellStateArray.size() * sizeof(uint32_t)
+    );
+
+    wgpuQueueWriteBuffer(
+        queue, 
+        cellStateStorageBufferB, // Write to buffer B
+        0, // offset
+        cellStateArray.data(), 
+        cellStateArray.size() * sizeof(uint32_t)
+    );
+    
+    std::cout << "✅ Cell state storage buffer created!" << std::endl;
+}
+
+void Life::createBindGroupLayout()
+{
+        std::cout << "🔧 Creating bind group layout..." << std::endl;
+    
+    // Define binding layout entries
+    WGPUBindGroupLayoutEntry bindingLayouts[2];
+    
+    // Uniform buffer binding (binding = 0)
+    bindingLayouts[0] = {};
+    bindingLayouts[0].binding = 0;
+    bindingLayouts[0].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    bindingLayouts[0].buffer.type = WGPUBufferBindingType_Uniform;
+    bindingLayouts[0].buffer.hasDynamicOffset = false;
+    bindingLayouts[0].buffer.minBindingSize = 0; // Use actual buffer size
+    
+    // Storage buffer binding (binding = 1)  
+    bindingLayouts[1] = {};
+    bindingLayouts[1].binding = 1;
+    bindingLayouts[1].visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
+    bindingLayouts[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    bindingLayouts[1].buffer.hasDynamicOffset = false;
+    bindingLayouts[1].buffer.minBindingSize = 0; // Use actual buffer size
+    
+    // Create bind group layout descriptor
+    WGPUBindGroupLayoutDescriptor layoutDesc = {};
+    layoutDesc.label = WGPUStringView{"Cell Bind Group Layout", 23};
+    layoutDesc.entryCount = 2;
+    layoutDesc.entries = bindingLayouts;
+    
+    // Create the bind group layout
+    bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &layoutDesc);
+    
+    if (!bindGroupLayout) {
+        std::cout << "❌ Failed to create bind group layout!" << std::endl;
+        return;
+    }
+    
+    std::cout << "✅ Bind group layout created with 2 bindings!" << std::endl;
 }
 
 void Life::setupVertexLayout()
@@ -153,25 +284,42 @@ void Life::createShaderModule()
     
     // WGSL shader code as a string
     const char* shaderCode = R"(
+        struct VertexInput {
+            @location(0) pos: vec2f,
+            @builtin(instance_index) instance: u32,
+        };
+
+        struct VertexOutput {
+            @builtin(position) pos: vec4f,
+            @location(0) cell: vec2f
+        };
+
         @group(0) @binding(0) var<uniform> grid: vec2f;
+        @group(0) @binding(1) var<storage> cellState: array<u32>;
 
         @vertex
-        fn vertexMain(
-            @location(0) pos: vec2f,
-            @builtin(instance_index) instance: u32
-        ) -> @builtin(position) vec4f {
+        fn vertexMain(input: VertexInput) -> VertexOutput {
 
-            let i = f32(instance);
+            let i = f32(input.instance);
             let cell = vec2f(i % grid.x, floor(i / grid.x)); // Grid cell X,Y (between 0 and GRID_SIZE-1)
+            let state = f32(cellState[input.instance]);
             let cellOffset = cell / grid * 2;
-            let gridPos = (pos + 1) / grid - 1 + cellOffset;
+            let gridPos = (input.pos * state + 1) / grid - 1 + cellOffset;
 
-            return vec4f(gridPos, 0, 1); 
+            var output: VertexOutput;
+            output.pos = vec4f(gridPos, 0, 1);
+            output.cell = cell;
+            return output;
         }
+
+        struct FragInput {
+            @location(0) cell: vec2f,
+        };
         
         @fragment
-        fn fragmentMain() -> @location(0) vec4f {
-            return vec4f(1, 0, 0, 1); // (Red, Green, Blue, Alpha)
+        fn fragmentMain(input: FragInput) -> @location(0) vec4f {
+            let c = input.cell / grid;
+            return vec4f(c, 1-c.y, 1);
         }
     )";
     
@@ -222,25 +370,12 @@ void Life::createRenderPipeline()
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
 
-    // Create bind group layout for uniforms ✅ NEW
-    WGPUBindGroupLayoutEntry bindGroupLayoutEntry = {};
-    bindGroupLayoutEntry.binding = 0;
-    bindGroupLayoutEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
-    bindGroupLayoutEntry.buffer.type = WGPUBufferBindingType_Uniform;
-    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
-    
-    WGPUBindGroupLayoutDescriptor bindGroupLayoutDesc = {};
-    bindGroupLayoutDesc.label = WGPUStringView{"Cell Bind Group Layout", 23};
-    bindGroupLayoutDesc.entryCount = 1;
-    bindGroupLayoutDesc.entries = &bindGroupLayoutEntry;
-    
-    WGPUBindGroupLayout bindGroupLayout = wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDesc);
-    
-    // Pipeline layout (auto)
+    // Create pipeline layout with our explicit bind group layout
+    WGPUBindGroupLayout layouts[] = { bindGroupLayout };
     WGPUPipelineLayoutDescriptor layoutDesc = {};
     layoutDesc.label = WGPUStringView{"Cell Pipeline Layout", 20};
     layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = &bindGroupLayout;
+    layoutDesc.bindGroupLayouts = layouts; // Use our explicit layout
     WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(device, &layoutDesc);
     
     // Complete pipeline descriptor
@@ -315,7 +450,7 @@ void Life::tick()
     // Set the render pipeline and draw the square!
     wgpuRenderPassEncoderSetPipeline(pass, cellPipeline);
     wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vertexBuffer, 0, sizeof(VERTICES));
-    wgpuRenderPassEncoderSetBindGroup(pass, 0, uniformBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(pass, 0, bindGroups[0], 0, nullptr);
     wgpuRenderPassEncoderDraw(pass, VERTEX_COUNT, INSTANCE_COUNT, 0, 0);
     
     // End render pass
