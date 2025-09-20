@@ -6,19 +6,16 @@
 #include "WebGPUContext.h"
 
 // Globals
-std::unique_ptr<Life> g_life;
+Life life;
 
 void main_loop() {
-    g_life->tick();
+    life.tick();
 }
 
 int main() {
     std::cout << "🚀 Starting WebGPU application..." << std::endl;
     try {
-        g_life = std::make_unique<Life>();
-
         emscripten_set_main_loop(main_loop, 0, 1);
-        
         return 0;
     }
     catch (const Life::InitializationError& e) {

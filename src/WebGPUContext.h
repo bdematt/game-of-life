@@ -16,7 +16,7 @@ public:
     WGPUDevice getDevice() const { return device; }
     WGPUSurface getSurface() const { return surface; }
     WGPUQueue getQueue() const { return queue; }
-    WGPUSurfaceTexture getCurentSurfaceTexture() {
+    WGPUSurfaceTexture getCurentSurfaceTexture() const {
         WGPUSurfaceTexture surfaceTexture;
         wgpuSurfaceGetCurrentTexture(getSurface(), &surfaceTexture);
         return surfaceTexture;
@@ -27,7 +27,7 @@ public:
     uint32_t getHeight() const { return height; }
     const WGPUSurfaceConfiguration& getSurfaceConfig() const { return surfaceConfig; }
 
-    WGPUTextureView createCurrentTextureView(WGPUTexture texture) {
+    WGPUTextureView createCurrentTextureView(WGPUTexture texture) const {
         return wgpuTextureCreateView(texture, &TEXTURE_VIEW_DESC);
     }
 
