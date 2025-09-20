@@ -19,6 +19,7 @@ add_executable(
     src/Life.cpp
     src/WebGPUContext.cpp
     src/RenderPipeline.cpp
+    src/ComputePipeline.cpp
     src/Geometry.cpp
 )
 
