@@ -90,5 +90,6 @@ private:
     void createCellStateStorageBuffer(const WebGPUContext& context);
     void createBindGroupLayout(const WebGPUContext& context);
     void createBindGroup(const WebGPUContext& context);
+    void cleanup();
 
 };

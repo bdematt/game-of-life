@@ -31,6 +31,7 @@
         const webGpuSupported = !!navigator.gpu;
         if (!wasmSupported || !webGpuSupported) {
             window.alert("WebAssembly or WebGPU not supported. Please try a different browser.");
+            return; // Stop execution
         }
         
         var Module = {

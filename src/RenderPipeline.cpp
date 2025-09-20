@@ -3,16 +3,29 @@
 
 RenderPipeline::RenderPipeline(const WebGPUContext& context, const Geometry& geometry)
 {
-    createCellShaderModule(context);
-    createUniformBuffer(context);
-    createCellStateStorageBuffer(context);
-    createBindGroupLayout(context);
-    createRenderPipeline(context, geometry);
-    createBindGroup(context);
+    try {
+        createCellShaderModule(context);
+        createUniformBuffer(context);
+        createCellStateStorageBuffer(context);
+        createBindGroupLayout(context);
+        createRenderPipeline(context, geometry);
+        createBindGroup(context);
+    } catch(...) {
+        cleanup();  // Clean up on any failure
+        throw;      // Re-throw the exception
+    }
 }
 
 RenderPipeline::~RenderPipeline()
 {
+    // Release in reverse order of creation
+    if (bindGroups[1]) wgpuBindGroupRelease(bindGroups[1]);
+    if (bindGroups[0]) wgpuBindGroupRelease(bindGroups[0]);
+    if (bindGroupLayout) wgpuBindGroupLayoutRelease(bindGroupLayout);
+    if (cellPipeline) wgpuRenderPipelineRelease(cellPipeline);
+    if (cellStateStorageBufferB) wgpuBufferRelease(cellStateStorageBufferB);
+    if (cellStateStorageBufferA) wgpuBufferRelease(cellStateStorageBufferA);
+    if (uniformBuffer) wgpuBufferRelease(uniformBuffer);
     if (cellShaderModule) wgpuShaderModuleRelease(cellShaderModule);
 }
 void RenderPipeline::createCellShaderModule(const WebGPUContext& context)
@@ -41,10 +54,7 @@ void RenderPipeline::createUniformBuffer(const WebGPUContext& context)
 
     // Create the buffer
     uniformBuffer = wgpuDeviceCreateBuffer(context.getDevice(), &bufferDesc);
-    
-    if (!uniformBuffer) {
-        return;
-    }
+    if (!uniformBuffer) throw Life::InitializationError("Failed to create uniform buffer");
 
     // Write vertex data to buffer
     wgpuQueueWriteBuffer(context.getQueue(), uniformBuffer, 0, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
@@ -103,9 +113,7 @@ void RenderPipeline::createBindGroup(const WebGPUContext& context)
     bindGroups[1] = wgpuDeviceCreateBindGroup(context.getDevice(), &bindGroupDescB);
 
     // Check if both bind groups were created successfully
-    if (!bindGroups[0] || !bindGroups[1]) {
-        return;
-    }
+    if (!bindGroups[0] || !bindGroups[1]) throw Life::InitializationError("Failed to create bind groups");
     
 }
 
@@ -167,7 +175,6 @@ void RenderPipeline::renderFrame(const WebGPUContext &context, const Geometry &g
     wgpuCommandEncoderRelease(encoder);
     wgpuRenderPassEncoderRelease(pass);
     wgpuTextureViewRelease(view);
-    wgpuTextureRelease(surfaceTexture.texture);
 }
 
 void RenderPipeline::createCellStateStorageBuffer(const WebGPUContext& context)
@@ -191,9 +198,7 @@ void RenderPipeline::createCellStateStorageBuffer(const WebGPUContext& context)
     bufferBDesc.mappedAtCreation = false;
     cellStateStorageBufferB = wgpuDeviceCreateBuffer(context.getDevice(), &bufferBDesc);
     
-    if (!cellStateStorageBufferA || !cellStateStorageBufferB) {
-        return;
-    }
+    if (!cellStateStorageBufferA || !cellStateStorageBufferB) throw Life::InitializationError("Failed to create storage buffers");
 
     // Pattern A: odd indices (1, 3, 5...)
     for (size_t i = 0; i < cellStateArray.size(); i++) {
@@ -244,9 +249,7 @@ void RenderPipeline::createBindGroupLayout(const WebGPUContext& context)
     // Create the bind group layout
     bindGroupLayout = wgpuDeviceCreateBindGroupLayout(context.getDevice(), &layoutDesc);
     
-    if (!bindGroupLayout) {
-        return;
-    }
+    if (!bindGroupLayout) throw Life::InitializationError("Failed to create bind group layout");
     
 }
 
@@ -303,8 +306,17 @@ void RenderPipeline::createRenderPipeline(const WebGPUContext& context, const Ge
     // Clean up intermediate layout
     wgpuPipelineLayoutRelease(pipelineLayout);
     
-    if (!cellPipeline) {
-        return;
-    }
+    if (!cellPipeline) throw Life::InitializationError("Failed to create cell pipeline");
     
+}
+void RenderPipeline::cleanup()
+{
+    if (bindGroups[1]) wgpuBindGroupRelease(bindGroups[1]);
+    if (bindGroups[0]) wgpuBindGroupRelease(bindGroups[0]);
+    if (bindGroupLayout) wgpuBindGroupLayoutRelease(bindGroupLayout);
+    if (cellPipeline) wgpuRenderPipelineRelease(cellPipeline);
+    if (cellStateStorageBufferB) wgpuBufferRelease(cellStateStorageBufferB);
+    if (cellStateStorageBufferA) wgpuBufferRelease(cellStateStorageBufferA);
+    if (uniformBuffer) wgpuBufferRelease(uniformBuffer);
+    if (cellShaderModule) wgpuShaderModuleRelease(cellShaderModule);
 }

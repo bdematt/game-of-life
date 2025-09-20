@@ -23,8 +23,8 @@ WebGPUContext::WebGPUContext()
         queue = wgpuDeviceGetQueue(device);
         if (!queue) throw Life::InitializationError("Failed to get queue");
     } catch (...) {
-        cleanup();  // Clean up on any failure
-        throw;      // Re-throw the exception
+        cleanup();
+        throw;
     }
 }
 WebGPUContext::~WebGPUContext()
