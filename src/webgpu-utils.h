@@ -1,5 +1,4 @@
 #pragma once
-
 #include <webgpu/webgpu.h>
 
 /**
@@ -16,8 +15,3 @@ WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * d
  * Utility function to create a WebGPU surface
  */
 WGPUSurface createSurface(WGPUInstance instance);
-
-/**
- * Utility function to create a WebGPU surface
- */
-void configureSurface(WGPUDevice device, WGPUSurface surface);

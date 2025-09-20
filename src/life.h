@@ -1,56 +1,33 @@
 #pragma once
 
 #include <webgpu/webgpu.h>
-#include <vector>
+#include <memory>
+#include "WebGPUContext.h"
+#include "Geometry.h"
+#include "RenderPipeline.h"
 
 class Life
 {
 public:
-    Life(WGPUInstance instance, WGPUAdapter adapter, WGPUDevice device, WGPUSurface surface, WGPUQueue queue);
-    ~Life();
 
+    class InitializationError : public std::runtime_error {
+        public:
+            InitializationError(const std::string& msg) 
+                : std::runtime_error("Initialization failed: " + msg) {}
+    };
+    class RuntimeError : public std::runtime_error {
+        public:
+            RuntimeError(const std::string& msg) 
+                : std::runtime_error("Encountered an unexpected runtime error: " + msg) {}
+    };
+    Life();
     void tick();
 
 private:
-    // WebGPU objects
-    WGPUInstance instance = nullptr;
-    WGPUAdapter adapter = nullptr;
-    WGPUDevice device = nullptr;
-    WGPUQueue queue = nullptr;
-    WGPUSurface surface = nullptr;
-    
-    // Vertex buffer and layout
-    WGPUBuffer vertexBuffer = nullptr;
-    WGPUVertexBufferLayout vertexBufferLayout = {};
-    WGPUVertexAttribute vertexAttribute = {};
-    
-    // Shader module and render pipeline
-    WGPUShaderModule cellShaderModule = nullptr;
-    WGPURenderPipeline cellPipeline = nullptr;
-    
-    // Surface state
-    bool surfaceCreated = false;
-    int width = 800;   // Canvas dimensions
-    int height = 600;
+    // WebGPU Context
+    std::unique_ptr<WebGPUContext> context;
 
-    // Vertex data for a square (two triangles)
-    // In Normalized Device Coordinates (-1 to 1)
-    static constexpr float vertices[] = {
-        // X,    Y,
-        -0.8f, -0.8f, // Triangle 1 (Blue)
-         0.8f, -0.8f,
-         0.8f,  0.8f,
-
-        -0.8f, -0.8f, // Triangle 2 (Red) 
-         0.8f,  0.8f,
-        -0.8f,  0.8f,
-    };
-    
-    static constexpr uint32_t vertexCount = 6; // 6 vertices (2 triangles * 3 vertices each)
-
-    // Internal methods
-    void createShaderModule();
-    void createVertexBuffer();
-    void setupVertexLayout();
-    void createRenderPipeline();
+    // Component Classes
+    std::unique_ptr<Geometry> geometry; 
+    std::unique_ptr<RenderPipeline> pipeline;    
 };
