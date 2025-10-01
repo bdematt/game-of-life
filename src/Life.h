@@ -6,6 +6,18 @@ class Life
 {
 private:
     // WGPU Context
+    struct PingPongBuffers {
+        wgpu::Buffer read{};
+        wgpu::Buffer write{};
+        wgpu::BindGroup readBindGroup{};
+        wgpu::BindGroup writeBindGroup{};
+        
+        void swap() {
+            std::swap(read, write);
+            std::swap(readBindGroup, writeBindGroup);
+        }
+    };
+    
     wgpu::Instance instance {};
     wgpu::Adapter adapter{nullptr};
     wgpu::Device device{nullptr};
@@ -15,7 +27,7 @@ private:
     wgpu::RenderPipeline renderPipeline{nullptr};
     wgpu::Buffer vertexBuffer{nullptr};
     wgpu::Buffer uniformBuffer{nullptr};
-    wgpu::Buffer storageBuffer{nullptr};
+    PingPongBuffers cellBuffers;
     wgpu::BindGroupLayout bindGroupLayout{nullptr};
     wgpu::BindGroup bindGroup{nullptr};
 
@@ -37,6 +49,8 @@ private:
 
     // Cell State
     std::vector<uint32_t> cellStateArray;
+    static constexpr int UPDATE_INTERVAL = 200;
+    int step = 0;
     
     void requestAdapter();
     void requestDevice();
@@ -49,6 +63,7 @@ private:
     void createBindGroupLayout();
     void createBindGroup();
     void cleanup();
+    void updateCellState();
 
 public:
     class InitializationError : public std::runtime_error {
