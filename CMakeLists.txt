@@ -20,12 +20,13 @@ file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/dist)
 # Emscripten-specific settings
 set_target_properties(index PROPERTIES
     SUFFIX ".html"
-    LINK_FLAGS "-s WASM=1 --shell-file ${CMAKE_SOURCE_DIR}/src/index.html"
+    LINK_FLAGS "-s WASM=1 -s USE_WEBGPU=1 --shell-file ${CMAKE_SOURCE_DIR}/src/index.html"
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/dist
 )
 
 # Emscripten link options
 target_link_options(index PRIVATE
+    -sUSE_WEBGPU=1
     -sASYNCIFY=1                   # Required for async WebGPU operations
     -sEXPORTED_FUNCTIONS=['_main'] # Export main function
     -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']
@@ -33,4 +34,5 @@ target_link_options(index PRIVATE
     -sINITIAL_MEMORY=67108864      # 64MB initial memory
     -sMAXIMUM_MEMORY=134217728     # 128MB max memory
     -O2                            # Optimize for performance
+    --embed-file ${CMAKE_SOURCE_DIR}/src/shaders@/shaders
 )
