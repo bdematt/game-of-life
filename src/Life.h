@@ -1,0 +1,62 @@
+#pragma once
+#include <cstdint>
+#include "webgpu.hpp"
+
+class Life
+{
+private:
+    // WGPU Context
+    wgpu::Instance instance {};
+    wgpu::Adapter adapter{nullptr};
+    wgpu::Device device{nullptr};
+    wgpu::Queue queue{nullptr};
+    wgpu::Surface surface{nullptr};
+    wgpu::SurfaceConfiguration surfaceConfig{};
+    wgpu::RenderPipeline renderPipeline{nullptr};
+    wgpu::Buffer vertexBuffer{nullptr};
+
+    // Geometry
+    static constexpr float VERTICES[] = {
+        -0.8f, -0.8f,
+         0.8f, -0.8f,
+         0.8f,  0.8f,
+        
+        -0.8f, -0.8f,
+         0.8f,  0.8f,
+        -0.8f,  0.8f,
+    };
+
+    void requestAdapter();
+    void requestDevice();
+    void createSurface();
+    void configureSurface();
+    void createRenderPipeline();
+    void createBuffer();
+
+public:
+    class InitializationError : public std::runtime_error {
+        public:
+            InitializationError(const std::string& msg) 
+                : std::runtime_error("Initialization failed: " + msg) {}
+    };
+    class RuntimeError : public std::runtime_error {
+        public:
+            RuntimeError(const std::string& msg) 
+                : std::runtime_error("Encountered an unexpected runtime error: " + msg) {}
+    };
+    Life();
+    ~Life();
+
+    const wgpu::Instance& getInstance() const { return instance; }
+    const wgpu::Adapter& getAdapter() const { return adapter; }
+    const wgpu::Device& getDevice() const { return device; }
+    const wgpu::Queue& getQueue() const { return queue; }
+    const wgpu::Surface& getSurface() const { return surface; }
+    const wgpu::SurfaceConfiguration& getSurfaceConfig() const { return surfaceConfig; }
+    const wgpu::RenderPipeline& getRenderPipeline() const { return renderPipeline; }
+    const wgpu::Buffer& getVertexBuffer() const { return vertexBuffer; }
+    void renderFrame();
+
+};
+
+
