@@ -3,11 +3,8 @@
 #include "Shader.h"
 
 Life::Life()
+    : cellStateArray(GRID_SIZE * GRID_SIZE)
 {
-    cellStateArray.resize(GRID_SIZE * GRID_SIZE, 0);
-    for (size_t i = 0; i < cellStateArray.size(); i++) {
-        cellStateArray[i] = i % 2 == 1;
-    }
     requestAdapter();
     requestDevice();
     createSurface();
@@ -15,6 +12,7 @@ Life::Life()
     createBindGroupLayout();
     createRenderPipeline();
     createVertexBuffer();
+    createStorageBuffers();
     createUniformBuffer();
     createBindGroup();
 }
@@ -85,7 +83,7 @@ void Life::createBindGroupLayout()
     storageBindGroupLayoutEntry.binding = 1;
     storageBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
     storageBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
-    storageBindGroupLayoutEntry.buffer.minBindingSize = sizeof(cellStateArray);
+    storageBindGroupLayoutEntry.buffer.minBindingSize = cellStateArray.size() * sizeof(uint32_t);
     entries[1] = storageBindGroupLayoutEntry;
 
     wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc {};
@@ -186,12 +184,19 @@ void Life::createUniformBuffer()
 
 void Life::createStorageBuffers()
 {
+    for (size_t i = 0; i < cellStateArray.size(); i++) {
+        cellStateArray[i] = i % 2 == 1;
+    }
     wgpu::BufferDescriptor bufferDesc {};
     bufferDesc.label = "Storage Buffer";
-    bufferDesc.size = sizeof(cellStateArray);
+    bufferDesc.size = cellStateArray.size() * sizeof(uint32_t);
     bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst; 
+    
     storageBuffer = device.createBuffer(bufferDesc);
     if (!storageBuffer) throw Life::InitializationError("Failed to create storage buffer");
+
+    constexpr uint64_t BUFFER_OFFSET = 0;
+    queue.writeBuffer(storageBuffer, BUFFER_OFFSET, cellStateArray.data(), cellStateArray.size() * sizeof(uint32_t));
 }
 
 void Life::createBindGroup()
@@ -209,9 +214,9 @@ void Life::createBindGroup()
     wgpu::BindGroupEntry storageBindGroupEntry {};
     storageBindGroupEntry.setDefault();
     storageBindGroupEntry.binding = 1;
-    storageBindGroupEntry.buffer = getUniformBuffer();
+    storageBindGroupEntry.buffer = storageBuffer;
     storageBindGroupEntry.offset = 0;
-    storageBindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+    storageBindGroupEntry.size = cellStateArray.size() * sizeof(uint32_t);
     entries[1] = storageBindGroupEntry;
 
     wgpu::BindGroupDescriptor bindgroupDesc {};
