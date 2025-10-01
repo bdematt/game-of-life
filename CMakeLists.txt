@@ -1,10 +1,7 @@
 cmake_minimum_required(VERSION 4.0)
 project(index)
 
-if(EMSCRIPTEN)
-    set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
-endif()
-
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,12 +12,6 @@ set(COMPILE_WARNING_AS_ERROR ON)
 add_executable(
     index
     src/main.cpp
-    src/webgpu-utils.cpp
-    src/Life.cpp
-    src/WebGPUContext.cpp
-    src/RenderPipeline.cpp
-    src/ComputePipeline.cpp
-    src/Geometry.cpp
 )
 
 # Create dist directory for web assets
@@ -33,7 +24,7 @@ set_target_properties(index PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/dist
 )
 
-# Emscripten link options with modern emdawnwebgpu port
+# Emscripten link options
 target_link_options(index PRIVATE
     -sASYNCIFY=1                   # Required for async WebGPU operations
     -sEXPORTED_FUNCTIONS=['_main'] # Export main function
