@@ -14,6 +14,9 @@ private:
     wgpu::SurfaceConfiguration surfaceConfig{};
     wgpu::RenderPipeline renderPipeline{nullptr};
     wgpu::Buffer vertexBuffer{nullptr};
+    wgpu::Buffer uniformBuffer{nullptr};
+    wgpu::BindGroupLayout bindGroupLayout{nullptr};
+    wgpu::BindGroup bindGroup{nullptr};
 
     // Geometry
     static constexpr float VERTICES[] = {
@@ -25,13 +28,21 @@ private:
          0.8f,  0.8f,
         -0.8f,  0.8f,
     };
-
+    static constexpr int GRID_SIZE = 32;
+    static constexpr float UNIFORM_ARRAY[2] = {
+        static_cast<float>(GRID_SIZE), 
+        static_cast<float>(GRID_SIZE)
+    };
+    
     void requestAdapter();
     void requestDevice();
     void createSurface();
     void configureSurface();
     void createRenderPipeline();
-    void createBuffer();
+    void createVertexBuffer();
+    void createUniformBuffer();
+    void createBindGroupLayout();
+    void createBindGroup();
     void cleanup();
 
 public:
@@ -56,6 +67,9 @@ public:
     const wgpu::SurfaceConfiguration& getSurfaceConfig() const { return surfaceConfig; }
     const wgpu::RenderPipeline& getRenderPipeline() const { return renderPipeline; }
     const wgpu::Buffer& getVertexBuffer() const { return vertexBuffer; }
+    const wgpu::Buffer& getUniformBuffer() const { return uniformBuffer; }
+    const wgpu::BindGroupLayout& getBindGroupLayout() const { return bindGroupLayout; }
+    const wgpu::BindGroup& getBindGroup() const { return bindGroup; }
     void renderFrame();
 
 };

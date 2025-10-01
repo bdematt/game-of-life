@@ -8,8 +8,11 @@ Life::Life()
     requestDevice();
     createSurface();
     configureSurface();
+    createBindGroupLayout();
     createRenderPipeline();
-    createBuffer();
+    createVertexBuffer();
+    createUniformBuffer();
+    createBindGroup();
 }
 
 Life::~Life()
@@ -61,6 +64,25 @@ void Life::configureSurface()
     surface.configure(surfaceConfig);
 }
 
+void Life::createBindGroupLayout()
+{
+    wgpu::BindGroupLayoutEntry bindGroupLayoutEntry {};
+    bindGroupLayoutEntry.setDefault();
+    bindGroupLayoutEntry.binding = 0;
+    bindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+    bindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Uniform;
+    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
+
+    wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc {};
+    bindGroupLayoutDesc.setDefault();
+    bindGroupLayoutDesc.label = "Cell bind group layout";
+    bindGroupLayoutDesc.entryCount = 1;
+    bindGroupLayoutDesc.entries = &bindGroupLayoutEntry;
+
+    bindGroupLayout = getDevice().createBindGroupLayout(bindGroupLayoutDesc);
+    if (!bindGroupLayout) throw Life::InitializationError("Failed to create bind group layout");   
+}
+
 void Life::createRenderPipeline()
 {
     wgpu::ShaderModule cellShaderModule = Shader::loadModuleFromFile(
@@ -68,6 +90,13 @@ void Life::createRenderPipeline()
         "/shaders/shader.wgsl"
     );
 
+    wgpu::PipelineLayoutDescriptor layoutDesc {};
+    layoutDesc.setDefault();
+    layoutDesc.bindGroupLayoutCount = 1;
+    layoutDesc.bindGroupLayouts = reinterpret_cast<const WGPUBindGroupLayout*>(&getBindGroupLayout());
+    wgpu::PipelineLayout pipelineLayout = getDevice().createPipelineLayout(layoutDesc);
+
+    // Vertex setup
     wgpu::VertexAttribute vertexAttribute {};
     vertexAttribute.setDefault();
     vertexAttribute.format = wgpu::VertexFormat::Float32x2;
@@ -81,12 +110,7 @@ void Life::createRenderPipeline()
     vertexBufferLayout.attributeCount = 1;
     vertexBufferLayout.attributes = &vertexAttribute;
 
-    wgpu::PipelineLayoutDescriptor layoutDesc {};
-    layoutDesc.setDefault();
-    layoutDesc.bindGroupLayoutCount = 0;
-    layoutDesc.bindGroupLayouts = nullptr;
-    wgpu::PipelineLayout pipelineLayout = getDevice().createPipelineLayout(layoutDesc);
-
+    // Pipeline descriptor
     wgpu::RenderPipelineDescriptor pipelineDesc {};
     pipelineDesc.setDefault();
     pipelineDesc.layout = pipelineLayout;
@@ -112,11 +136,12 @@ void Life::createRenderPipeline()
 
     renderPipeline = getDevice().createRenderPipeline(pipelineDesc);
 
+    // Clean up temporary resources
     pipelineLayout.release();
     cellShaderModule.release();
 }
 
-void Life::createBuffer()
+void Life::createVertexBuffer()
 {
     wgpu::BufferDescriptor bufferDesc {};
     bufferDesc.setDefault();
@@ -124,18 +149,58 @@ void Life::createBuffer()
     bufferDesc.size = sizeof(VERTICES);
     
     vertexBuffer = getDevice().createBuffer(bufferDesc);
-    getQueue().writeBuffer(vertexBuffer, 0, VERTICES, sizeof(VERTICES));
+    if (!vertexBuffer) throw Life::InitializationError("Failed to create vertexBuffer buffer");
+
+    constexpr uint64_t BUFFER_OFFSET = 0;
+    getQueue().writeBuffer(vertexBuffer, BUFFER_OFFSET, VERTICES, sizeof(VERTICES));
+}
+
+void Life::createUniformBuffer()
+{
+    wgpu::BufferDescriptor bufferDesc {};
+    bufferDesc.setDefault();
+    bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
+    bufferDesc.size = sizeof(UNIFORM_ARRAY);
+    
+    uniformBuffer = getDevice().createBuffer(bufferDesc);
+    if (!uniformBuffer) throw Life::InitializationError("Failed to create uniform buffer");
+
+    constexpr uint64_t BUFFER_OFFSET = 0;
+    getQueue().writeBuffer(uniformBuffer, BUFFER_OFFSET, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
+}
+
+void Life::createBindGroup()
+{
+    wgpu::BindGroupEntry bindGroupEntry {};
+    bindGroupEntry.setDefault();
+    bindGroupEntry.binding = 0;
+    bindGroupEntry.buffer = getUniformBuffer();
+    bindGroupEntry.offset = 0;
+    bindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+
+    wgpu::BindGroupDescriptor bindgroupDesc {};
+    bindgroupDesc.setDefault();
+    bindgroupDesc.label = "Cell renderer bind group";
+    bindgroupDesc.layout = bindGroupLayout;
+    bindgroupDesc.entryCount = 1;
+    bindgroupDesc.entries = &bindGroupEntry;
+
+    bindGroup = device.createBindGroup(bindgroupDesc);
+    if (!bindGroup) throw Life::InitializationError("Failed to create bindGroup");
 }
 
 void Life::cleanup()
 {
-    if (instance) instance.release();
+    if (bindGroup) bindGroup.release();
+    if (bindGroupLayout) bindGroupLayout.release();
+    if (uniformBuffer) uniformBuffer.release();
     if (vertexBuffer) vertexBuffer.release();
     if (renderPipeline) renderPipeline.release();
     if (surface) surface.release();
     if (queue) queue.release();
     if (device) device.release();
     if (adapter) adapter.release();
+    if (instance) instance.release();
 }
 
 void Life::renderFrame()
@@ -161,7 +226,9 @@ void Life::renderFrame()
     wgpu::RenderPassEncoder pass = encoder.beginRenderPass(renderPassDesc);
     pass.setPipeline(getRenderPipeline());
     pass.setVertexBuffer(0, getVertexBuffer(), 0, sizeof(VERTICES));
-    pass.draw(6, 1, 0, 0);
+    pass.setBindGroup(0, getBindGroup(), 0, nullptr);
+    constexpr uint32_t VERTEX_COUNT = sizeof(VERTICES) / sizeof(float) / 2;
+    pass.draw(VERTEX_COUNT, GRID_SIZE * GRID_SIZE, 0, 0);
     pass.end();
 
     wgpu::CommandBuffer commandBuffer = encoder.finish();
