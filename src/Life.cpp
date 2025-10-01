@@ -14,6 +14,7 @@ Life::Life()
 
 Life::~Life()
 {
+    cleanup();
 }
 
 void Life::requestAdapter()
@@ -110,6 +111,9 @@ void Life::createRenderPipeline()
     pipelineDesc.fragment = &fragmentState;
 
     renderPipeline = getDevice().createRenderPipeline(pipelineDesc);
+
+    pipelineLayout.release();
+    cellShaderModule.release();
 }
 
 void Life::createBuffer()
@@ -121,6 +125,17 @@ void Life::createBuffer()
     
     vertexBuffer = getDevice().createBuffer(bufferDesc);
     getQueue().writeBuffer(vertexBuffer, 0, VERTICES, sizeof(VERTICES));
+}
+
+void Life::cleanup()
+{
+    if (instance) instance.release();
+    if (vertexBuffer) vertexBuffer.release();
+    if (renderPipeline) renderPipeline.release();
+    if (surface) surface.release();
+    if (queue) queue.release();
+    if (device) device.release();
+    if (adapter) adapter.release();
 }
 
 void Life::renderFrame()
@@ -151,4 +166,6 @@ void Life::renderFrame()
 
     wgpu::CommandBuffer commandBuffer = encoder.finish();
     getQueue().submit(commandBuffer);
+    
+    view.release();
 }

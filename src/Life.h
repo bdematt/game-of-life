@@ -32,6 +32,7 @@ private:
     void configureSurface();
     void createRenderPipeline();
     void createBuffer();
+    void cleanup();
 
 public:
     class InitializationError : public std::runtime_error {
