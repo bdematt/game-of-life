@@ -15,6 +15,7 @@ private:
     wgpu::RenderPipeline renderPipeline{nullptr};
     wgpu::Buffer vertexBuffer{nullptr};
     wgpu::Buffer uniformBuffer{nullptr};
+    wgpu::Buffer storageBuffer{nullptr};
     wgpu::BindGroupLayout bindGroupLayout{nullptr};
     wgpu::BindGroup bindGroup{nullptr};
 
@@ -33,6 +34,9 @@ private:
         static_cast<float>(GRID_SIZE), 
         static_cast<float>(GRID_SIZE)
     };
+
+    // Cell State
+    std::vector<uint32_t> cellStateArray;
     
     void requestAdapter();
     void requestDevice();
@@ -41,6 +45,7 @@ private:
     void createRenderPipeline();
     void createVertexBuffer();
     void createUniformBuffer();
+    void createStorageBuffers();
     void createBindGroupLayout();
     void createBindGroup();
     void cleanup();

@@ -4,6 +4,10 @@
 
 Life::Life()
 {
+    cellStateArray.resize(GRID_SIZE * GRID_SIZE, 0);
+    for (size_t i = 0; i < cellStateArray.size(); i++) {
+        cellStateArray[i] = i % 2 == 1;
+    }
     requestAdapter();
     requestDevice();
     createSurface();
@@ -66,18 +70,29 @@ void Life::configureSurface()
 
 void Life::createBindGroupLayout()
 {
-    wgpu::BindGroupLayoutEntry bindGroupLayoutEntry {};
-    bindGroupLayoutEntry.setDefault();
-    bindGroupLayoutEntry.binding = 0;
-    bindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
-    bindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Uniform;
-    bindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
+    wgpu::BindGroupLayoutEntry entries[2];
+
+    wgpu::BindGroupLayoutEntry uniformBindGroupLayoutEntry {};
+    uniformBindGroupLayoutEntry.setDefault();
+    uniformBindGroupLayoutEntry.binding = 0;
+    uniformBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+    uniformBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Uniform;
+    uniformBindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
+    entries[0] = uniformBindGroupLayoutEntry;
+
+    wgpu::BindGroupLayoutEntry storageBindGroupLayoutEntry {};
+    storageBindGroupLayoutEntry.setDefault();
+    storageBindGroupLayoutEntry.binding = 1;
+    storageBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+    storageBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
+    storageBindGroupLayoutEntry.buffer.minBindingSize = sizeof(cellStateArray);
+    entries[1] = storageBindGroupLayoutEntry;
 
     wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc {};
     bindGroupLayoutDesc.setDefault();
     bindGroupLayoutDesc.label = "Cell bind group layout";
-    bindGroupLayoutDesc.entryCount = 1;
-    bindGroupLayoutDesc.entries = &bindGroupLayoutEntry;
+    bindGroupLayoutDesc.entryCount = 2;
+    bindGroupLayoutDesc.entries = entries;
 
     bindGroupLayout = getDevice().createBindGroupLayout(bindGroupLayoutDesc);
     if (!bindGroupLayout) throw Life::InitializationError("Failed to create bind group layout");   
@@ -169,21 +184,42 @@ void Life::createUniformBuffer()
     getQueue().writeBuffer(uniformBuffer, BUFFER_OFFSET, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
 }
 
+void Life::createStorageBuffers()
+{
+    wgpu::BufferDescriptor bufferDesc {};
+    bufferDesc.label = "Storage Buffer";
+    bufferDesc.size = sizeof(cellStateArray);
+    bufferDesc.usage = wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst; 
+    storageBuffer = device.createBuffer(bufferDesc);
+    if (!storageBuffer) throw Life::InitializationError("Failed to create storage buffer");
+}
+
 void Life::createBindGroup()
 {
-    wgpu::BindGroupEntry bindGroupEntry {};
-    bindGroupEntry.setDefault();
-    bindGroupEntry.binding = 0;
-    bindGroupEntry.buffer = getUniformBuffer();
-    bindGroupEntry.offset = 0;
-    bindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+    wgpu::BindGroupEntry entries[2];
+
+    wgpu::BindGroupEntry uniformBindGroupEntry {};
+    uniformBindGroupEntry.setDefault();
+    uniformBindGroupEntry.binding = 0;
+    uniformBindGroupEntry.buffer = getUniformBuffer();
+    uniformBindGroupEntry.offset = 0;
+    uniformBindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+    entries[0] = uniformBindGroupEntry;
+
+    wgpu::BindGroupEntry storageBindGroupEntry {};
+    storageBindGroupEntry.setDefault();
+    storageBindGroupEntry.binding = 1;
+    storageBindGroupEntry.buffer = getUniformBuffer();
+    storageBindGroupEntry.offset = 0;
+    storageBindGroupEntry.size = sizeof(UNIFORM_ARRAY);
+    entries[1] = storageBindGroupEntry;
 
     wgpu::BindGroupDescriptor bindgroupDesc {};
     bindgroupDesc.setDefault();
     bindgroupDesc.label = "Cell renderer bind group";
     bindgroupDesc.layout = bindGroupLayout;
-    bindgroupDesc.entryCount = 1;
-    bindgroupDesc.entries = &bindGroupEntry;
+    bindgroupDesc.entryCount = 2;
+    bindgroupDesc.entries = entries;
 
     bindGroup = device.createBindGroup(bindgroupDesc);
     if (!bindGroup) throw Life::InitializationError("Failed to create bindGroup");
