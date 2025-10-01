@@ -33,17 +33,8 @@ set_target_properties(index PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/dist
 )
 
-# Use the modern emdawnwebgpu port instead of the deprecated -sUSE_WEBGPU
-set(emdawnwebgpu_flags "--use-port=emdawnwebgpu")
-
-# Add compile options for emdawnwebgpu
-target_compile_options(index PRIVATE
-    ${emdawnwebgpu_flags}
-)
-
 # Emscripten link options with modern emdawnwebgpu port
 target_link_options(index PRIVATE
-    ${emdawnwebgpu_flags}          # Use modern emdawnwebgpu port
     -sASYNCIFY=1                   # Required for async WebGPU operations
     -sEXPORTED_FUNCTIONS=['_main'] # Export main function
     -sEXPORTED_RUNTIME_METHODS=['ccall','cwrap']
