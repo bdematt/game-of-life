@@ -26,6 +26,7 @@ private:
     wgpu::Surface surface{nullptr};
     wgpu::SurfaceConfiguration surfaceConfig{};
     wgpu::RenderPipeline renderPipeline{nullptr};
+    wgpu::ComputePipeline simulationPipeline{nullptr};
     wgpu::Buffer vertexBuffer{nullptr};
     wgpu::Buffer uniformBuffer{nullptr};
     PingPongBuffers cellBuffers;
@@ -43,6 +44,7 @@ private:
         -0.8f,  0.8f,
     };
     static constexpr int GRID_SIZE = 32;
+    static constexpr int WORKGROUP_SIZE = 8;
     static constexpr float UNIFORM_ARRAY[2] = {
         static_cast<float>(GRID_SIZE), 
         static_cast<float>(GRID_SIZE)
@@ -53,19 +55,19 @@ private:
     std::vector<uint32_t> cellStateArray;
     float accumulatedTime = UPDATE_INTERVAL_SECONDS; // Start at threshold for immediate first update
     std::chrono::steady_clock::time_point lastFrameTime;
+    uint32_t step = 0;
     
     void requestAdapter();
     void requestDevice();
     void createSurface();
     void configureSurface();
-    void createRenderPipeline();
+    void createPipelines();
     void createVertexBuffer();
     void createUniformBuffer();
     void createStorageBuffers();
     void createBindGroupLayout();
     void createBindGroup();
     void cleanup();
-    void updateCellState();
     bool shouldUpdateCells();
 
 public:
@@ -89,6 +91,7 @@ public:
     const wgpu::Surface& getSurface() const { return surface; }
     const wgpu::SurfaceConfiguration& getSurfaceConfig() const { return surfaceConfig; }
     const wgpu::RenderPipeline& getRenderPipeline() const { return renderPipeline; }
+    const wgpu::ComputePipeline& getSimulationPipeline() const { return simulationPipeline; }
     const wgpu::Buffer& getVertexBuffer() const { return vertexBuffer; }
     const wgpu::Buffer& getUniformBuffer() const { return uniformBuffer; }
     const wgpu::BindGroupLayout& getBindGroupLayout() const { return bindGroupLayout; }

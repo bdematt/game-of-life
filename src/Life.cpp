@@ -11,7 +11,7 @@ Life::Life()
     createSurface();
     configureSurface();
     createBindGroupLayout();
-    createRenderPipeline();
+    createPipelines();
     createVertexBuffer();
     createStorageBuffers();
     createUniformBuffer();
@@ -69,35 +69,50 @@ void Life::configureSurface()
 
 void Life::createBindGroupLayout()
 {
-    std::array<wgpu::BindGroupLayoutEntry, 2> entries;
+    std::array<wgpu::BindGroupLayoutEntry, 3> entries;
 
+    // Binding 0: Grid uniform buffer
     wgpu::BindGroupLayoutEntry uniformBindGroupLayoutEntry {};
     uniformBindGroupLayoutEntry.setDefault();
     uniformBindGroupLayoutEntry.binding = 0;
-    uniformBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+    uniformBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | 
+                                             wgpu::ShaderStage::Fragment | 
+                                             wgpu::ShaderStage::Compute;
     uniformBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Uniform;
     uniformBindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
     entries[0] = uniformBindGroupLayoutEntry;
 
-    wgpu::BindGroupLayoutEntry storageBindGroupLayoutEntry {};
-    storageBindGroupLayoutEntry.setDefault();
-    storageBindGroupLayoutEntry.binding = 1;
-    storageBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
-    storageBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
-    storageBindGroupLayoutEntry.buffer.minBindingSize = cellStateArray.size() * sizeof(uint32_t);
-    entries[1] = storageBindGroupLayoutEntry;
+    // Binding 1: Cell state INPUT buffer (read-only-storage)
+    wgpu::BindGroupLayoutEntry inputStorageBindGroupLayoutEntry {};
+    inputStorageBindGroupLayoutEntry.setDefault();
+    inputStorageBindGroupLayoutEntry.binding = 1;
+    inputStorageBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Vertex | 
+                                                   wgpu::ShaderStage::Fragment | 
+                                                   wgpu::ShaderStage::Compute;
+    inputStorageBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::ReadOnlyStorage;
+    inputStorageBindGroupLayoutEntry.buffer.minBindingSize = cellStateArray.size() * sizeof(uint32_t);
+    entries[1] = inputStorageBindGroupLayoutEntry;
+
+    // Binding 2: Cell state OUTPUT buffer (storage)
+    wgpu::BindGroupLayoutEntry outputStorageBindGroupLayoutEntry {};
+    outputStorageBindGroupLayoutEntry.setDefault();
+    outputStorageBindGroupLayoutEntry.binding = 2;
+    outputStorageBindGroupLayoutEntry.visibility = wgpu::ShaderStage::Compute;
+    outputStorageBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Storage;
+    outputStorageBindGroupLayoutEntry.buffer.minBindingSize = cellStateArray.size() * sizeof(uint32_t);
+    entries[2] = outputStorageBindGroupLayoutEntry;
 
     wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc {};
     bindGroupLayoutDesc.setDefault();
     bindGroupLayoutDesc.label = "Cell bind group layout";
-    bindGroupLayoutDesc.entryCount = 2;
+    bindGroupLayoutDesc.entryCount = 3;
     bindGroupLayoutDesc.entries = entries.data();
 
     bindGroupLayout = getDevice().createBindGroupLayout(bindGroupLayoutDesc);
     if (!bindGroupLayout) throw Life::InitializationError("Failed to create bind group layout");   
 }
 
-void Life::createRenderPipeline()
+void Life::createPipelines()
 {
     wgpu::ShaderModule cellShaderModule = Shader::loadModuleFromFile(
         getDevice(),
@@ -127,6 +142,7 @@ void Life::createRenderPipeline()
     // Pipeline descriptor
     wgpu::RenderPipelineDescriptor pipelineDesc {};
     pipelineDesc.setDefault();
+    pipelineDesc.label = "Cell pipeline";
     pipelineDesc.layout = pipelineLayout;
 
     pipelineDesc.vertex.module = cellShaderModule;
@@ -150,8 +166,25 @@ void Life::createRenderPipeline()
 
     renderPipeline = getDevice().createRenderPipeline(pipelineDesc);
 
+    // Create compute pipeline
+    wgpu::PipelineLayoutDescriptor computeLayoutDesc {};
+    computeLayoutDesc.setDefault();
+    computeLayoutDesc.bindGroupLayoutCount = 1;
+    computeLayoutDesc.bindGroupLayouts = reinterpret_cast<const WGPUBindGroupLayout*>(&getBindGroupLayout());
+    wgpu::PipelineLayout computePipelineLayout = getDevice().createPipelineLayout(computeLayoutDesc);
+
+    wgpu::ComputePipelineDescriptor computePipelineDesc {};
+    computePipelineDesc.setDefault();
+    computePipelineDesc.label = "Simulation pipeline";
+    computePipelineDesc.layout = computePipelineLayout;
+    computePipelineDesc.compute.module = cellShaderModule;
+    computePipelineDesc.compute.entryPoint = "computeMain";
+
+    simulationPipeline = getDevice().createComputePipeline(computePipelineDesc);
+    if (!simulationPipeline) throw Life::InitializationError("Failed to create compute pipeline");
+
     // Clean up temporary resources
-    pipelineLayout.release();
+    computePipelineLayout.release();
     cellShaderModule.release();
 }
 
@@ -213,8 +246,8 @@ void Life::createStorageBuffers()
 
 void Life::createBindGroup()
 {
-    // Create bind group for READ buffer
-    std::array<wgpu::BindGroupEntry, 2> readEntries;
+    // Create bind group A (reads from cellBuffers.read, writes to cellBuffers.write)
+    std::array<wgpu::BindGroupEntry, 3> readEntries;
 
     readEntries[0].setDefault();
     readEntries[0].binding = 0;
@@ -224,13 +257,20 @@ void Life::createBindGroup()
 
     readEntries[1].setDefault();
     readEntries[1].binding = 1;
-    readEntries[1].buffer = cellBuffers.read;
+    readEntries[1].buffer = cellBuffers.read;  // INPUT buffer
     readEntries[1].offset = 0;
     readEntries[1].size = cellStateArray.size() * sizeof(uint32_t);
 
+    // Binding 2 - OUTPUT buffer
+    readEntries[2].setDefault();
+    readEntries[2].binding = 2;
+    readEntries[2].buffer = cellBuffers.write;  // OUTPUT buffer
+    readEntries[2].offset = 0;
+    readEntries[2].size = cellStateArray.size() * sizeof(uint32_t);
+
     wgpu::BindGroupDescriptor readBindGroupDesc {};
     readBindGroupDesc.setDefault();
-    readBindGroupDesc.label = "Cell read bind group";
+    readBindGroupDesc.label = "Cell renderer bind group A";
     readBindGroupDesc.layout = bindGroupLayout;
     readBindGroupDesc.entryCount = readEntries.size();
     readBindGroupDesc.entries = readEntries.data();
@@ -238,8 +278,8 @@ void Life::createBindGroup()
     cellBuffers.readBindGroup = device.createBindGroup(readBindGroupDesc);
     if (!cellBuffers.readBindGroup) throw Life::InitializationError("Failed to create read bindGroup");
 
-    // Create bind group for WRITE buffer
-    std::array<wgpu::BindGroupEntry, 2> writeEntries;
+    // Create bind group B (reads from cellBuffers.write, writes to cellBuffers.read)
+    std::array<wgpu::BindGroupEntry, 3> writeEntries;
 
     writeEntries[0].setDefault();
     writeEntries[0].binding = 0;
@@ -253,9 +293,15 @@ void Life::createBindGroup()
     writeEntries[1].offset = 0;
     writeEntries[1].size = cellStateArray.size() * sizeof(uint32_t);
 
+    writeEntries[2].setDefault();
+    writeEntries[2].binding = 2;
+    writeEntries[2].buffer = cellBuffers.read;
+    writeEntries[2].offset = 0;
+    writeEntries[2].size = cellStateArray.size() * sizeof(uint32_t);
+
     wgpu::BindGroupDescriptor writeBindGroupDesc {};
     writeBindGroupDesc.setDefault();
-    writeBindGroupDesc.label = "Cell write bind group";
+    writeBindGroupDesc.label = "Cell renderer bind group B";
     writeBindGroupDesc.layout = bindGroupLayout;
     writeBindGroupDesc.entryCount = writeEntries.size();
     writeBindGroupDesc.entries = writeEntries.data();
@@ -288,14 +334,33 @@ void Life::renderFrame()
         return;
     }
     
-    updateCellState();
+    // Create command encoder
+    wgpu::CommandEncoder encoder = getDevice().createCommandEncoder();
 
+    // ========== COMPUTE PASS - Update cell state ==========
+    wgpu::ComputePassEncoder computePass = encoder.beginComputePass();
+    
+    computePass.setPipeline(getSimulationPipeline());
+    
+    // Alternate between bind groups each step
+    wgpu::BindGroup currentBindGroup = (step % 2 == 0) 
+        ? cellBuffers.readBindGroup 
+        : cellBuffers.writeBindGroup;
+    computePass.setBindGroup(0, currentBindGroup, 0, nullptr);
+    
+    // Calculate workgroup count
+    const uint32_t workgroupCount = (GRID_SIZE + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+    computePass.dispatchWorkgroups(workgroupCount, workgroupCount, 1);
+    
+    computePass.end();
+    
+    step++;  // Increment step counter
+
+    // ========== RENDER PASS - Draw the cells ==========
     wgpu::SurfaceTexture surfaceTexture {};
     getSurface().getCurrentTexture(&surfaceTexture);
     wgpu::Texture texture = surfaceTexture.texture;
     wgpu::TextureView view = texture.createView();
-
-    wgpu::CommandEncoder encoder = getDevice().createCommandEncoder();
 
     wgpu::RenderPassColorAttachment colorAttachment {};
     colorAttachment.view = view;
@@ -308,38 +373,24 @@ void Life::renderFrame()
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &colorAttachment;
 
-    wgpu::RenderPassEncoder pass = encoder.beginRenderPass(renderPassDesc);
-    pass.setPipeline(getRenderPipeline());
-    pass.setVertexBuffer(0, getVertexBuffer(), 0, sizeof(VERTICES));
-    pass.setBindGroup(0, cellBuffers.readBindGroup, 0, nullptr);  // Use READ buffer
+    wgpu::RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
+    renderPass.setPipeline(getRenderPipeline());
+    renderPass.setVertexBuffer(0, getVertexBuffer(), 0, sizeof(VERTICES));
+    
+    // Use the SAME bind group that was just written to by compute pass
+    renderPass.setBindGroup(0, currentBindGroup, 0, nullptr);
+    
     constexpr uint32_t VERTEX_COUNT = sizeof(VERTICES) / sizeof(float) / 2;
-    pass.draw(VERTEX_COUNT, GRID_SIZE * GRID_SIZE, 0, 0);
-    pass.end();
+    renderPass.draw(VERTEX_COUNT, GRID_SIZE * GRID_SIZE, 0, 0);
+    renderPass.end();
 
+    // Submit all commands
     wgpu::CommandBuffer commandBuffer = encoder.finish();
     getQueue().submit(commandBuffer);
     
     view.release();
-    cellBuffers.swap();
 }
 
-void Life::updateCellState()
-{
-    // Alternate between even and odd cell patterns
-    static bool showEvenCells = true;
-    
-    for (size_t i = 0; i < cellStateArray.size(); i++) {
-        cellStateArray[i] = (i % 2 == (showEvenCells ? 0 : 1)) ? 1 : 0;
-    }
-    
-    // Write the new pattern to the WRITE buffer
-    constexpr uint64_t BUFFER_OFFSET = 0;
-    queue.writeBuffer(cellBuffers.write, BUFFER_OFFSET, cellStateArray.data(), 
-                     cellStateArray.size() * sizeof(uint32_t));
-    
-    // Toggle for next frame
-    showEvenCells = !showEvenCells;
-}
 bool Life::shouldUpdateCells() {
     auto now = std::chrono::steady_clock::now();
     float deltaTime = std::chrono::duration<float>(now - lastFrameTime).count();
