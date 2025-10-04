@@ -4,6 +4,7 @@
 
 Life::Life()
     : cellStateArray(GRID_SIZE * GRID_SIZE)
+    , lastFrameTime(std::chrono::steady_clock::now())
 {
     requestAdapter();
     requestDevice();
@@ -283,8 +284,12 @@ void Life::cleanup()
 
 void Life::renderFrame()
 {
-    updateCellState();
+    if (!shouldUpdateCells()) {
+        return;
+    }
     
+    updateCellState();
+
     wgpu::SurfaceTexture surfaceTexture {};
     getSurface().getCurrentTexture(&surfaceTexture);
     wgpu::Texture texture = surfaceTexture.texture;
@@ -334,4 +339,21 @@ void Life::updateCellState()
     
     // Toggle for next frame
     showEvenCells = !showEvenCells;
+}
+bool Life::shouldUpdateCells() {
+    auto now = std::chrono::steady_clock::now();
+    float deltaTime = std::chrono::duration<float>(now - lastFrameTime).count();
+    lastFrameTime = now;
+    
+    // Cap deltaTime to avoid huge jumps from tab switching
+    constexpr float MAX_DELTA_TIME = UPDATE_INTERVAL_SECONDS * 2.0f;
+    deltaTime = std::min(deltaTime, MAX_DELTA_TIME);
+    
+    accumulatedTime += deltaTime;
+    
+    if (accumulatedTime >= UPDATE_INTERVAL_SECONDS) {
+        accumulatedTime -= UPDATE_INTERVAL_SECONDS;
+        return true;
+    }
+    return false;
 }

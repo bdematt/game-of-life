@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include "webgpu.hpp"
+#include <chrono>
 
 class Life
 {
@@ -48,9 +49,10 @@ private:
     };
 
     // Cell State
+    static constexpr float UPDATE_INTERVAL_SECONDS = 1.5f;
     std::vector<uint32_t> cellStateArray;
-    static constexpr int UPDATE_INTERVAL = 200;
-    int step = 0;
+    float accumulatedTime = UPDATE_INTERVAL_SECONDS; // Start at threshold for immediate first update
+    std::chrono::steady_clock::time_point lastFrameTime;
     
     void requestAdapter();
     void requestDevice();
@@ -64,6 +66,7 @@ private:
     void createBindGroup();
     void cleanup();
     void updateCellState();
+    bool shouldUpdateCells();
 
 public:
     class InitializationError : public std::runtime_error {
