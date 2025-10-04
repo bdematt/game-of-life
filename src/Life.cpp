@@ -1,6 +1,7 @@
 #include "Life.h"
 #include "webgpu.hpp"
 #include "Shader.h"
+#include <random>
 
 Life::Life()
     : cellStateArray(GRID_SIZE * GRID_SIZE)
@@ -62,8 +63,8 @@ void Life::configureSurface()
     surfaceConfig.device = device;
     surfaceConfig.format = getSurface().getPreferredFormat(adapter);
     surfaceConfig.usage = wgpu::TextureUsage::RenderAttachment;
-    surfaceConfig.width = 800;
-    surfaceConfig.height = 600;
+    surfaceConfig.width = 1600;
+    surfaceConfig.height = 1200;
     surface.configure(surfaceConfig);
 }
 
@@ -173,12 +174,19 @@ void Life::createPipelines()
     computeLayoutDesc.bindGroupLayouts = reinterpret_cast<const WGPUBindGroupLayout*>(&getBindGroupLayout());
     wgpu::PipelineLayout computePipelineLayout = getDevice().createPipelineLayout(computeLayoutDesc);
 
+    // Define the override constant
+    wgpu::ConstantEntry constantEntry {};
+    constantEntry.key = "WORKGROUP_SIZE";
+    constantEntry.value = static_cast<double>(WORKGROUP_SIZE);
+
     wgpu::ComputePipelineDescriptor computePipelineDesc {};
     computePipelineDesc.setDefault();
     computePipelineDesc.label = "Simulation pipeline";
     computePipelineDesc.layout = computePipelineLayout;
     computePipelineDesc.compute.module = cellShaderModule;
     computePipelineDesc.compute.entryPoint = "computeMain";
+    computePipelineDesc.compute.constantCount = 1;
+    computePipelineDesc.compute.constants = &constantEntry;
 
     simulationPipeline = getDevice().createComputePipeline(computePipelineDesc);
     if (!simulationPipeline) throw Life::InitializationError("Failed to create compute pipeline");
@@ -218,9 +226,11 @@ void Life::createUniformBuffer()
 
 void Life::createStorageBuffers()
 {
-    // Initialize cell state with a pattern
-    for (size_t i = 0; i < cellStateArray.size(); i++) {
-        cellStateArray[i] = i % 2 == 1;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, 1);
+    for (auto& cell : cellStateArray) {
+        cell = dis(gen);
     }
     
     wgpu::BufferDescriptor bufferDesc {};
@@ -321,6 +331,7 @@ void Life::cleanup()
     if (uniformBuffer) uniformBuffer.release();
     if (vertexBuffer) vertexBuffer.release();
     if (renderPipeline) renderPipeline.release();
+    if (simulationPipeline) simulationPipeline.release();
     if (surface) surface.release();
     if (queue) queue.release();
     if (device) device.release();
@@ -337,9 +348,8 @@ void Life::renderFrame()
     // Create command encoder
     wgpu::CommandEncoder encoder = getDevice().createCommandEncoder();
 
-    // ========== COMPUTE PASS - Update cell state ==========
+    // Compute Shader Pass
     wgpu::ComputePassEncoder computePass = encoder.beginComputePass();
-    
     computePass.setPipeline(getSimulationPipeline());
     
     // Alternate between bind groups each step
@@ -354,7 +364,7 @@ void Life::renderFrame()
     
     computePass.end();
     
-    step++;  // Increment step counter
+    step++;
 
     // ========== RENDER PASS - Draw the cells ==========
     wgpu::SurfaceTexture surfaceTexture {};
@@ -396,7 +406,7 @@ bool Life::shouldUpdateCells() {
     float deltaTime = std::chrono::duration<float>(now - lastFrameTime).count();
     lastFrameTime = now;
     
-    // Cap deltaTime to avoid huge jumps from tab switching
+    // Cap deltaTime to avoid huge jumps (can happen when browser tab is inactive)
     constexpr float MAX_DELTA_TIME = UPDATE_INTERVAL_SECONDS * 2.0f;
     deltaTime = std::min(deltaTime, MAX_DELTA_TIME);
     

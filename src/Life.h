@@ -43,7 +43,7 @@ private:
          0.8f,  0.8f,
         -0.8f,  0.8f,
     };
-    static constexpr int GRID_SIZE = 32;
+    static constexpr int GRID_SIZE = 256;
     static constexpr int WORKGROUP_SIZE = 8;
     static constexpr float UNIFORM_ARRAY[2] = {
         static_cast<float>(GRID_SIZE), 
@@ -51,9 +51,9 @@ private:
     };
 
     // Cell State
-    static constexpr float UPDATE_INTERVAL_SECONDS = 1.5f;
+    static constexpr float UPDATE_INTERVAL_SECONDS = 0.1f;
     std::vector<uint32_t> cellStateArray;
-    float accumulatedTime = UPDATE_INTERVAL_SECONDS; // Start at threshold for immediate first update
+    float accumulatedTime = UPDATE_INTERVAL_SECONDS;
     std::chrono::steady_clock::time_point lastFrameTime;
     uint32_t step = 0;
     
