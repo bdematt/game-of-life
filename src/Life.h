@@ -45,7 +45,7 @@ private:
     };
     static constexpr int GRID_SIZE = 256;
     static constexpr int WORKGROUP_SIZE = 8;
-    static constexpr float UNIFORM_ARRAY[2] = {
+    static constexpr float GRID_DIMENSIONS[2] = {
         static_cast<float>(GRID_SIZE), 
         static_cast<float>(GRID_SIZE)
     };

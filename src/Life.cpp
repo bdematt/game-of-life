@@ -80,7 +80,7 @@ void Life::createBindGroupLayout()
                                              wgpu::ShaderStage::Fragment | 
                                              wgpu::ShaderStage::Compute;
     uniformBindGroupLayoutEntry.buffer.type = wgpu::BufferBindingType::Uniform;
-    uniformBindGroupLayoutEntry.buffer.minBindingSize = sizeof(UNIFORM_ARRAY);
+    uniformBindGroupLayoutEntry.buffer.minBindingSize = sizeof(GRID_DIMENSIONS);
     entries[0] = uniformBindGroupLayoutEntry;
 
     // Binding 1: Cell state INPUT buffer (read-only-storage)
@@ -215,13 +215,13 @@ void Life::createUniformBuffer()
     wgpu::BufferDescriptor bufferDesc {};
     bufferDesc.setDefault();
     bufferDesc.usage = wgpu::BufferUsage::Uniform | wgpu::BufferUsage::CopyDst;
-    bufferDesc.size = sizeof(UNIFORM_ARRAY);
+    bufferDesc.size = sizeof(GRID_DIMENSIONS);
     
     uniformBuffer = getDevice().createBuffer(bufferDesc);
     if (!uniformBuffer) throw Life::InitializationError("Failed to create uniform buffer");
 
     constexpr uint64_t BUFFER_OFFSET = 0;
-    getQueue().writeBuffer(uniformBuffer, BUFFER_OFFSET, UNIFORM_ARRAY, sizeof(UNIFORM_ARRAY));
+    getQueue().writeBuffer(uniformBuffer, BUFFER_OFFSET, GRID_DIMENSIONS, sizeof(GRID_DIMENSIONS));
 }
 
 void Life::createStorageBuffers()
@@ -263,7 +263,7 @@ void Life::createBindGroup()
     readEntries[0].binding = 0;
     readEntries[0].buffer = getUniformBuffer();
     readEntries[0].offset = 0;
-    readEntries[0].size = sizeof(UNIFORM_ARRAY);
+    readEntries[0].size = sizeof(GRID_DIMENSIONS);
 
     readEntries[1].setDefault();
     readEntries[1].binding = 1;
@@ -295,7 +295,7 @@ void Life::createBindGroup()
     writeEntries[0].binding = 0;
     writeEntries[0].buffer = getUniformBuffer();
     writeEntries[0].offset = 0;
-    writeEntries[0].size = sizeof(UNIFORM_ARRAY);
+    writeEntries[0].size = sizeof(GRID_DIMENSIONS);
 
     writeEntries[1].setDefault();
     writeEntries[1].binding = 1;
@@ -405,7 +405,7 @@ bool Life::shouldUpdateCells() {
     auto now = std::chrono::steady_clock::now();
     float deltaTime = std::chrono::duration<float>(now - lastFrameTime).count();
     lastFrameTime = now;
-    
+
     // Cap deltaTime to avoid huge jumps (can happen when browser tab is inactive)
     constexpr float MAX_DELTA_TIME = UPDATE_INTERVAL_SECONDS * 2.0f;
     deltaTime = std::min(deltaTime, MAX_DELTA_TIME);

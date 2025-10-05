@@ -13,13 +13,13 @@
         }
         canvas {
             border: 2px solid #fff;
-            background: #000;  /* Black background to see if canvas is working */
+            background: #000;
         }
     </style>
 </head>
 <body>
     <section>
-        <h1>👾 Game of Life 👾</h1>
+        <h1>👾 Conway's Game of Life 👾</h1>
     </section>
     <canvas id="canvas" width="1600" height="1200"></canvas>
     
@@ -37,7 +37,7 @@
         var Module = {
             canvas,  // Pass the canvas to Emscripten
             onRuntimeInitialized: () => {
-                console.log('Ready to rock!');
+                console.log('Game Start!');
             }
         };
     </script>
