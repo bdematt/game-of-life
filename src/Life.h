@@ -97,6 +97,7 @@ public:
     const wgpu::BindGroupLayout& getBindGroupLayout() const { return bindGroupLayout; }
     const wgpu::BindGroup& getBindGroup() const { return bindGroup; }
     void renderFrame();
+    void handleResize();
 
 };
 

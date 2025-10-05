@@ -4,28 +4,76 @@
     <link rel="stylesheet" href="https://cdn.simplecss.org/simple.min.css">
     <title>👾 Conway's Game of Life 👾</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        canvas {
-            border: 2px solid #fff;
+        
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
             background: #000;
+        }
+        
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+        
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.3) !important;
+            backdrop-filter: blur(1px);
+            -webkit-backdrop-filter: blur(1px);
+            padding: 1rem;
+            text-align: center;
+            z-index: 10;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            color: #fff;
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            margin: 0;
         }
     </style>
 </head>
 <body>
-    <section>
+    <header>
         <h1>👾 Conway's Game of Life 👾</h1>
-    </section>
-    <canvas id="canvas" width="1600" height="1200"></canvas>
+        <a href="https://www.google.com">View Source</a>
+    </header>
+    <canvas id="canvas"></canvas>
     
     <!-- Define Module BEFORE Emscripten script --> 
     <script>
         const canvas = document.getElementById('canvas');
+
+        // Set canvas to exact window dimensions
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Notify C++ about the resize if the module is loaded
+            if (Module && Module._handleResize) {
+                Module._handleResize();
+            }
+        }
+        
+        // Set initial size
+        resizeCanvas();
+
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
         
         const wasmSupported = typeof WebAssembly === "object" && typeof WebAssembly.instantiate === "function"
         const webGpuSupported = !!navigator.gpu;

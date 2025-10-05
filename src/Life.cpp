@@ -2,6 +2,7 @@
 #include "webgpu.hpp"
 #include "Shader.h"
 #include <random>
+#include <emscripten/html5.h>
 
 Life::Life()
     : cellStateArray(GRID_SIZE * GRID_SIZE)
@@ -63,8 +64,10 @@ void Life::configureSurface()
     surfaceConfig.device = device;
     surfaceConfig.format = getSurface().getPreferredFormat(adapter);
     surfaceConfig.usage = wgpu::TextureUsage::RenderAttachment;
-    surfaceConfig.width = 1600;
-    surfaceConfig.height = 1200;
+    int width, height;
+    emscripten_get_canvas_element_size("#canvas", &width, &height);
+    surfaceConfig.width = width;
+    surfaceConfig.height = height;
     surface.configure(surfaceConfig);
 }
 
@@ -399,6 +402,16 @@ void Life::renderFrame()
     getQueue().submit(commandBuffer);
     
     view.release();
+}
+
+void Life::handleResize()
+{
+    int width, height;
+    emscripten_get_canvas_element_size("#canvas", &width, &height);
+
+    surfaceConfig.width = static_cast<uint32_t>(width);
+    surfaceConfig.height = static_cast<uint32_t>(height);
+    surface.configure(surfaceConfig);
 }
 
 bool Life::shouldUpdateCells() {
