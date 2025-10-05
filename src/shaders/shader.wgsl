@@ -5,6 +5,8 @@
 @group(0) @binding(0) var<uniform> grid: vec2f; 
 
 // Cell state buffers (Alternative between Life::PingPongBuffers::read and ::write each frame)
+// Stored as u32 (not bool) for arithmetic convenience and storage buffer compatibility
+// This could be optimized with bitpacking and bitwise operations, but memory savings are negligible at low grid sizes
 @group(0) @binding(1) var<storage> cellStateIn: array<u32>; // Current state
 @group(0) @binding(2) var<storage, read_write> cellStateOut: array<u32>; // Next state
 
@@ -59,11 +61,14 @@ fn fragmentMain(input: VertexOutput) -> @location(0) vec4f {
 // Compute Shader Helper Functions
 // ======================================================
 fn cellIndex(cell: vec2u) -> u32 {
+  // Cells are stored in a 1D array, so converts 2D (x,y) to 1D index
+  // Wraps around edges using modulo operator, so opposite edges are connected
   return (cell.y % u32(grid.y)) * u32(grid.x) +
          (cell.x % u32(grid.x));
 }
 
 fn cellActive(x: u32, y: u32) -> u32 {
+  // Gets cell active state (0 or 1) for index converted from (x,y)
   return cellStateIn[cellIndex(vec2(x, y))];
 }
 
