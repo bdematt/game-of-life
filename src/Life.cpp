@@ -83,7 +83,7 @@ void Life::createBindGroupLayout()
     uniformBindGroupLayoutEntry.buffer.minBindingSize = sizeof(GRID_DIMENSIONS);
     entries[0] = uniformBindGroupLayoutEntry;
 
-    // Binding 1: Cell state INPUT buffer (read-only-storage)
+    // Binding 1: Cell state INPUT buffer (read-only storage)
     wgpu::BindGroupLayoutEntry inputStorageBindGroupLayoutEntry {};
     inputStorageBindGroupLayoutEntry.setDefault();
     inputStorageBindGroupLayoutEntry.binding = 1;
@@ -94,7 +94,7 @@ void Life::createBindGroupLayout()
     inputStorageBindGroupLayoutEntry.buffer.minBindingSize = cellStateArray.size() * sizeof(uint32_t);
     entries[1] = inputStorageBindGroupLayoutEntry;
 
-    // Binding 2: Cell state OUTPUT buffer (storage)
+    // Binding 2: Cell state OUTPUT buffer (read-write storage)
     wgpu::BindGroupLayoutEntry outputStorageBindGroupLayoutEntry {};
     outputStorageBindGroupLayoutEntry.setDefault();
     outputStorageBindGroupLayoutEntry.binding = 2;
